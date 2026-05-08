@@ -1,0 +1,15 @@
+<% layout('layouts/common') %>
+<div class="min-h-screen flex items-center justify-center p-4">
+  <div class="text-center max-w-md">
+    <div class="text-9xl font-black text-gray-200 dark:text-gray-800 mb-4"><%= statusCode || 500 %></div>
+    <h1 class="text-2xl font-bold dark:text-white mb-3"><% if (statusCode === 404) { %>Page Not Found<% } else if (statusCode === 403) { %>Access Denied<% } else { %>Something Went Wrong<% } %></h1>
+    <p class="text-gray-500 dark:text-gray-400 mb-8"><%= message || 'An unexpected error occurred.' %></p>
+    <% if (typeof stack !== 'undefined' && stack) { %>
+    <details class="mb-6 text-left"><summary class="text-xs text-gray-400 cursor-pointer">Error Details</summary><pre class="mt-2 text-xs bg-gray-100 dark:bg-gray-800 p-3 rounded-lg overflow-auto text-red-500"><%= stack %></pre></details>
+    <% } %>
+    <div class="flex gap-3 justify-center">
+      <a href="/" class="btn-primary px-6 py-3 rounded-xl font-semibold flex items-center gap-2"><i class="fa-solid fa-home"></i> Go Home</a>
+      <button onclick="history.back()" class="px-6 py-3 border-2 border-gray-200 dark:border-gray-700 rounded-xl font-semibold dark:text-gray-300 hover:border-accent-500 transition-all">Go Back</button>
+    </div>
+  </div>
+</div>
