@@ -2,8 +2,12 @@ const express = require("express");
 const path = require("path");
 const morgan = require("morgan");
 const cookieParser = require("cookie-parser");
+const flash = require("connect-flash");
 const ejsMate = require("ejs-mate");
+const session = require("express-session");
+const passport = require("./config/passport");
 
+const sessionConfig = require("./config/session");
 const routes = require("./routes/index");
 const {
   notFound,
@@ -33,6 +37,12 @@ app.use(
     maxAge: env.isProd ? "7d" : 0,
   }),
 );
+
+// ====== Session & Auth ======
+app.use(session(sessionConfig));
+app.use(passport.initialize());
+app.use(passport.session());
+app.use(flash());
 
 // ====== View Engine ======
 app.engine("ejs", ejsMate);
