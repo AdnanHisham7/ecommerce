@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <rect width="400" height="400" fill="#1a1a2e"/>
+  <text x="200" y="220" text-anchor="middle" font-size="100" fill="#f0a500" opacity="0.3">⚽</text>
+  <text x="200" y="280" text-anchor="middle" font-size="16" fill="#6b7280" font-family="sans-serif">No Image</text>
+</svg>
