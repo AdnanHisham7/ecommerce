@@ -1,0 +1,59 @@
+<% layout('layouts/common') %>
+<div class="min-h-screen flex items-center justify-center p-4">
+  <div class="w-full max-w-md animate-slide-in-up">
+    <div class="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl overflow-hidden">
+      <div class="pt-8 text-center">
+        <div class="w-16 h-16 bg-accent-500 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-xl"><i class="fa-solid fa-envelope-open-text text-white text-2xl"></i></div>
+        <h1 class="text-2xl font-black dark:text-white">Verify Your Email</h1>
+        <p class="text-gray-400 text-sm mt-1">We sent a 6-digit OTP to</p>
+        <p class="text-accent-400 font-semibold text-sm"><%= email %></p>
+      </div>
+      <div class="p-5 sm:p-8">
+        <form action="/auth/verify-otp" method="POST">
+          <div class="flex justify-center gap-3 mb-6" id="otpInputs">
+            <% for(let i=0;i<6;i++) { %>
+            <input type="text" maxlength="1" class="otp-box w-12 h-12 text-center border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-white rounded-xl text-xl font-bold focus:border-accent-500 focus:ring-2 focus:ring-accent-500/20 outline-none transition-all" inputmode="numeric" pattern="[0-9]"/>
+            <% } %>
+          </div>
+          <input type="hidden" name="otp" id="otpFinal"/>
+          <button type="submit" onclick="combineOTP(event)" class="w-full btn-primary py-3.5 rounded-xl font-bold text-base mb-4">Verify OTP</button>
+        </form>
+        <div class="text-center">
+          <p class="text-sm text-gray-500 dark:text-gray-400">Didn't receive the OTP? <span id="timerDisplay" class="text-accent-500 font-semibold">Resend in 60s</span></p>
+          <button id="resendBtn" onclick="resendOTP()" class="hidden text-accent-500 font-semibold text-sm hover:text-accent-600">Resend OTP</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+// OTP input auto-advance
+const boxes = document.querySelectorAll('.otp-box');
+boxes.forEach((box, i) => {
+  box.addEventListener('input', e => { if (e.target.value && i < boxes.length-1) boxes[i+1].focus(); });
+  box.addEventListener('keydown', e => { if (e.key === 'Backspace' && !e.target.value && i > 0) boxes[i-1].focus(); });
+  box.addEventListener('paste', e => {
+    e.preventDefault();
+    const paste = e.clipboardData.getData('text').replace(/\D/g,'').slice(0,6);
+    paste.split('').forEach((c,j) => { if(boxes[j]) boxes[j].value = c; });
+    boxes[Math.min(paste.length, 5)].focus();
+  });
+});
+function combineOTP(e) {
+  const otp = Array.from(boxes).map(b=>b.value).join('');
+  if (otp.length < 6) { e.preventDefault(); showToast('Please enter all 6 digits', 'error'); return; }
+  document.getElementById('otpFinal').value = otp;
+}
+// Timer
+let sec = 60;
+const timer = setInterval(() => {
+  sec--;
+  if (sec <= 0) { clearInterval(timer); document.getElementById('timerDisplay').classList.add('hidden'); document.getElementById('resendBtn').classList.remove('hidden'); return; }
+  document.getElementById('timerDisplay').textContent = `Resend in ${sec}s`;
+}, 1000);
+async function resendOTP() {
+  const r = await fetch('/auth/resend-otp', { method:'POST' });
+  const d = await r.json();
+  if (d.success) { showToast(d.message, 'success'); document.getElementById('resendBtn').classList.add('hidden'); document.getElementById('timerDisplay').classList.remove('hidden'); sec=60; clearInterval(timer); }
+}
+</script>

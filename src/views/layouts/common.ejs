@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en" class="<%= theme === 'dark' ? 'dark' : '' %>" data-theme="<%= theme || 'system' %>">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title><%= typeof title !== 'undefined' ? title : brand.name %></title>
+  <meta name="description" content="<%= typeof seo !== 'undefined' && seo.metaDescription ? seo.metaDescription : brand.description %>"/>
+  <link rel="manifest" href="/pwa/manifest.json"/>
+  <link rel="icon" href="<%= brand.logoUrl %>" type="image/svg+xml"/>
+  <link rel="apple-touch-icon" href="/images/apple-touch-icon.png"/>
+
+  <link rel="stylesheet" href="/css/output.css">
+  
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+
+  <style>
+    :root {
+      --color-primary: <%= brand.colors.primary %>;
+      --color-accent: <%= brand.colors.accent %>;
+      --color-accent-hover: <%= brand.colors.accentHover %>;
+    }
+
+    .text-accent-400 { color: <%= brand.colors.accent400 %>; }
+    .text-accent-500 { color: var(--color-accent); }
+    .text-accent-600 { color: var(--color-accent-hover); }
+    .bg-accent-100  { background-color: #fee2e2; }
+    .bg-accent-500  { background-color: var(--color-accent); }
+    .hover\:text-accent-500:hover { color: var(--color-accent); }
+    .hover\:text-accent-600:hover { color: var(--color-accent-hover); }
+    .focus\:border-accent-500:focus { border-color: var(--color-accent); }
+    .focus\:ring-accent-500:focus { --tw-ring-color: var(--color-accent); }
+    .border-accent-500 { border-color: var(--color-accent); }
+    .bg-primary { background-color: var(--color-primary); }
+
+    /* You can clean up or leave these fallbacks; /css/output.css handles them natively now */
+    .dark .dark\:border-gray-800 { border-color: #1f2937; }
+    .dark .dark\:border-gray-700 { border-color: #374151; }
+    .dark .dark\:bg-gray-900 { background-color: #111827; }
+
+    * { scroll-behavior: smooth; }
+    body { font-family: 'Inter', sans-serif; }
+    .dark body { background-color: #0f0f1a; }
+
+    .skeleton { background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
+    .dark .skeleton { background: linear-gradient(90deg, #1e1e2e 25%, #2e2e3e 50%, #1e1e2e 75%); background-size: 200% 100%; }
+
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: <%= brand.colors.scrollbarThumb %>; border-radius: 3px; }
+
+    .toast-container { position: fixed; top: 1.5rem; right: 1rem; z-index: 9999; display: flex; flex-direction: column; gap: 0.5rem; max-width: calc(100vw - 2rem); }
+    .page-transition { animation: slideInUp 0.3s ease-out; }
+    .btn-primary { background: linear-gradient(135deg, var(--color-accent), var(--color-accent-hover)); color: white; transition: all 0.2s; }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 25px rgba(229,62,62,0.4); }
+
+    @keyframes slideInUp { 0% { transform: translateY(20px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+    @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+    .animate-slide-in-up { animation: slideInUp 0.4s ease-out; }
+  </style>
+
+  <%- typeof extraHead !== 'undefined' ? extraHead : '' %>
+</head>
+<body class="bg-gray-50 dark:bg-[#0f0f1a] text-gray-900 dark:text-gray-100 transition-colors duration-300">
+
+<!-- Toast Notifications -->
+<div class="toast-container" id="toastContainer">
+  <% if (success && success.length) { success.forEach(msg => { %>
+    <div class="toast flex items-center gap-3 bg-green-600 text-white px-4 py-3 rounded-xl shadow-xl animate-slide-in-up max-w-sm text-sm">
+      <i class="fa-solid fa-circle-check flex-shrink-0"></i><span><%= msg %></span>
+      <button onclick="this.parentElement.remove()" class="ml-auto opacity-70 hover:opacity-100"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+  <% }) } %>
+  <% if (error && error.length) { error.forEach(msg => { %>
+    <div class="toast flex items-center gap-3 bg-red-600 text-white px-4 py-3 rounded-xl shadow-xl animate-slide-in-up max-w-sm text-sm">
+      <i class="fa-solid fa-circle-exclamation flex-shrink-0"></i><span><%= msg %></span>
+      <button onclick="this.parentElement.remove()" class="ml-auto opacity-70 hover:opacity-100"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+  <% }) } %>
+  <% if (info && info.length) { info.forEach(msg => { %>
+    <div class="toast flex items-center gap-3 bg-blue-600 text-white px-4 py-3 rounded-xl shadow-xl animate-slide-in-up max-w-sm text-sm">
+      <i class="fa-solid fa-circle-info flex-shrink-0"></i><span><%= msg %></span>
+      <button onclick="this.parentElement.remove()" class="ml-auto opacity-70 hover:opacity-100"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+  <% }) } %>
+</div>
+
+<main class="page-transition min-h-screen">
+  <%- body %>
+</main>
+
+<script>
+document.querySelectorAll('.toast').forEach(t => setTimeout(() => t.style.display='none', 5000));
+
+const initTheme = () => {
+  const saved = localStorage.getItem('theme') || '<%= theme %>';
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  if (saved === 'dark' || (saved === 'system' && prefersDark)) document.documentElement.classList.add('dark');
+  else document.documentElement.classList.remove('dark');
+};
+initTheme();
+
+window.showToast = (msg, type='success') => {
+  const colors = { success:'bg-green-600', error:'bg-red-600', info:'bg-blue-600', warning:'bg-yellow-600' };
+  const icons = { success:'fa-circle-check', error:'fa-circle-exclamation', info:'fa-circle-info', warning:'fa-triangle-exclamation' };
+  const el = document.createElement('div');
+  el.className = `toast flex items-center gap-3 ${colors[type]||colors.info} text-white px-4 py-3 rounded-xl shadow-xl animate-slide-in-up max-w-sm text-sm`;
+  el.innerHTML = `<i class="fa-solid ${icons[type]||icons.info} flex-shrink-0"></i><span>${msg}</span><button onclick="this.parentElement.remove()" class="ml-auto opacity-70 hover:opacity-100"><i class="fa-solid fa-xmark"></i></button>`;
+  document.getElementById('toastContainer').appendChild(el);
+  setTimeout(() => el.remove(), 5000);
+};
+
+function togglePassword(inputId, btn) {
+  const inp = document.getElementById(inputId);
+  if (!inp) return;
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+  btn.querySelector('i').className = inp.type === 'password' ? 'fa-regular fa-eye text-sm' : 'fa-regular fa-eye-slash text-sm';
+}
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+<%- typeof extraScripts !== 'undefined' ? extraScripts : '' %>
+</body>
+</html>
