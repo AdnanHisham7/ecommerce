@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title><%= typeof title !== 'undefined' ? title + ' — Admin' : 'Admin Panel' %> | FootballStore</title>
+ <link
+rel="stylesheet"
+href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css">
+<!-- Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+<style>
+  :root {
+    --color-sidebar: #0f0f1a;
+    --color-sidebar-hover: #1a1a2e;
+    --color-accent: #f0a500;
+    --color-accent-hover: #d97706;
+  }
+
+  /* Accent utilities */
+  .text-accent-400 { color: #fbbf24; }
+  .text-accent-500 { color: var(--color-accent); }
+  .text-accent-600 { color: var(--color-accent-hover); }
+
+  .bg-accent-500 { background-color: var(--color-accent); }
+  .bg-accent-600 { background-color: var(--color-accent-hover); }
+
+  .hover\:bg-accent-500:hover {
+    background-color: var(--color-accent);
+  }
+
+  .hover\:bg-accent-600:hover {
+    background-color: var(--color-accent-hover);
+  }
+
+  .hover\:text-accent-500:hover {
+    color: var(--color-accent);
+  }
+
+  .focus\:ring-accent-500:focus {
+    --tw-ring-color: var(--color-accent);
+  }
+
+  /* Sidebar utilities */
+  .bg-sidebar {
+    background-color: var(--color-sidebar);
+  }
+
+  .bg-sidebar-hover {
+    background-color: var(--color-sidebar-hover);
+  }
+
+  .hover\:bg-sidebar-hover:hover {
+    background-color: var(--color-sidebar-hover);
+  }
+
+  /* Dark mode compatibility */
+  .dark body {
+    background-color: #0f0f1a;
+  }
+
+  .dark .dark\:bg-gray-900 {
+    background-color: #111827;
+  }
+
+  .dark .dark\:border-gray-700 {
+    border-color: #374151;
+  }
+
+  .dark .dark\:border-gray-800 {
+    border-color: #1f2937;
+  }
+
+  body {
+    font-family: 'Inter', sans-serif;
+  }
+
+  * {
+    scroll-behavior: smooth;
+  }
+
+  /* Optional admin transitions */
+  .page-transition {
+    animation: fadeIn .25s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .peer:checked + .toggle-track {
+    background-color: rgb(234 179 8); /* accent-500 */
+  }
+
+  /* Better Toggle Styling */
+  .peer:checked + div {
+    background-color: #f0a500 !important;
+  }
+
+ /* Enhanced Toggle Fix */
+  .peer:checked ~ div {
+    transform: translateX(20px) !important;
+  }
+
+  .relative.w-11.h-6 {
+    transition: background-color 0.3s ease;
+  }
+
+  /* Smooth toggle */
+  input[type="checkbox"].peer {
+    transition: all 0.3s ease;
+  }
+
+  .transparent-black {
+    background-color: rgba(0, 0, 0, 0.6);
+  }
+
+  .group:hover .group-hover\:flex {
+    display: flex;
+}
+  
+</style>
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <!-- Chart.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    * { scroll-behavior: smooth; }
+    body { font-family: 'Inter', sans-serif; background: #080812; color: #e5e7eb; }
+    .sidebar-link { display: flex; align-items: center; gap: 0.75rem; padding: 0.625rem 1rem; border-radius: 0.5rem; color: #9ca3af; transition: all 0.2s; font-size: 0.875rem; }
+    .sidebar-link:hover, .sidebar-link.active, .sidebar-link.sidebar-link-active { background: rgba(240,165,0,0.1); color: #f0a500; }
+    .sidebar-link.active, .sidebar-link.sidebar-link-active { border-left: 3px solid #f0a500; }
+    .card { background: #1a1a2e; border: 1px solid rgba(255,255,255,0.05); border-radius: 1rem; }
+    .stat-card { background: linear-gradient(135deg, #1a1a2e, #16213e); border: 1px solid rgba(240,165,0,0.1); border-radius: 1rem; transition: transform 0.2s, box-shadow 0.2s; }
+    .stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(240,165,0,0.1); }
+    ::-webkit-scrollbar { width: 5px; } ::-webkit-scrollbar-track { background: #080812; } ::-webkit-scrollbar-thumb { background: #f0a500; border-radius: 3px; }
+    .toast-container { position: fixed; top: 1.5rem; right: 1.5rem; z-index: 9999; display: flex; flex-direction: column; gap: 0.5rem; }
+    table { border-collapse: collapse; } thead tr { background: rgba(240,165,0,0.08); }
+    input, select, textarea { background: #0f0f1a !important; border: 1px solid rgba(255,255,255,0.1) !important; color: #e5e7eb !important; border-radius: 0.5rem; padding: 0.5rem 0.75rem; }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: #f0a500 !important; box-shadow: 0 0 0 2px rgba(240,165,0,0.2); }
+    .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 9999px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+  </style>
+  <%- typeof extraHead !== 'undefined' ? extraHead : '' %>
+</head>
+<body class="flex h-screen overflow-hidden">
+
+<!-- Sidebar -->
+<%- include('../partials/admin/sidebar') %>
+
+<!-- Main -->
+<div class="flex-1 flex flex-col overflow-hidden">
+  <!-- Admin Header -->
+  <%- include('../partials/admin/header') %>
+
+  <!-- Toast -->
+  <div class="toast-container" id="toastContainer">
+    <% if (typeof success !== 'undefined' && success && success.length) { success.forEach(msg => { %>
+      <div class="toast flex items-center gap-3 bg-green-700 text-white px-4 py-3 rounded-xl shadow-xl text-sm">
+        <i class="fa-solid fa-circle-check"></i><span><%= msg %></span>
+        <button onclick="this.parentElement.remove()" class="ml-auto"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+    <% }) } %>
+    <% if (typeof error !== 'undefined' && error && error.length) { error.forEach(msg => { %>
+      <div class="toast flex items-center gap-3 bg-red-700 text-white px-4 py-3 rounded-xl shadow-xl text-sm">
+        <i class="fa-solid fa-circle-exclamation"></i><span><%= msg %></span>
+        <button onclick="this.parentElement.remove()" class="ml-auto"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+    <% }) } %>
+  </div>
+
+  <!-- Page Content -->
+  <main class="flex-1 overflow-y-auto p-6">
+    <%- body %>
+  </main>
+</div>
+
+<script>
+document.querySelectorAll('.toast').forEach(t => setTimeout(() => t.remove(), 5000));
+
+window.showToast = (msg, type='success') => {
+  const colors = { success:'bg-green-700', error:'bg-red-700', info:'bg-blue-700', warning:'bg-yellow-700' };
+  const icons = { success:'fa-circle-check', error:'fa-circle-exclamation', info:'fa-circle-info', warning:'fa-triangle-exclamation' };
+  const el = document.createElement('div');
+  el.className = `toast flex items-center gap-3 ${colors[type]} text-white px-4 py-3 rounded-xl shadow-xl text-sm`;
+  el.innerHTML = `<i class="fa-solid ${icons[type]}"></i><span>${msg}</span><button onclick="this.parentElement.remove()" class="ml-auto"><i class="fa-solid fa-xmark"></i></button>`;
+  document.getElementById('toastContainer').appendChild(el);
+  setTimeout(() => el.remove(), 5000);
+};
+
+// Confirm dialogs
+window.confirmDelete = (form, msg='Are you sure you want to delete this?') => {
+  if (confirm(msg)) form.submit();
+};
+
+// Highlight current page in sidebar
+document.querySelectorAll('.sidebar-link').forEach(link => {
+  if (window.location.pathname.startsWith(link.getAttribute('href'))) link.classList.add('active');
+});
+
+// ── Admin real-time socket notifications ─────────────────────────────────────
+if (typeof io !== 'undefined') {
+  const socket = io();
+  socket.emit('join_admin');
+
+  socket.on('new_order', (data) => {
+    showToast(`🛒 New Order #${data.orderNumber} from ${data.userName} — ₹${data.amount}`, 'info');
+    // Update order count badge if it exists
+    const badge = document.getElementById('pendingOrdersBadge');
+    if (badge) badge.textContent = (parseInt(badge.textContent) || 0) + 1;
+  });
+
+  socket.on('stock_alert', (data) => {
+    showToast(`⚠️ Low stock: ${data.productName} (${data.stock} left)`, 'warning');
+  });
+}
+</script>
+<script>
+  window.history.pushState(null, "", window.location.href);
+
+  window.onpopstate = function () {
+    window.history.pushState(null, "", window.location.href);
+  };
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+<%- typeof extraScripts !== 'undefined' ? extraScripts : '' %>
+</body>
+</html>

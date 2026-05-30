@@ -1,0 +1,182 @@
+<% layout('layouts/admin') %>
+
+<!-- Stats Grid -->
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+  <% [
+    { label: 'Total Revenue', value: '₹' + stats.totalRevenue.toLocaleString('en-IN'), sub: 'All time', icon: 'fa-indian-rupee-sign', color: 'from-yellow-500 to-yellow-600' },
+    { label: 'This Month', value: '₹' + stats.monthRevenue.toLocaleString('en-IN'), sub: (stats.revenueGrowth >= 0 ? '▲' : '▼') + ' ' + Math.abs(stats.revenueGrowth) + '% vs last month', icon: 'fa-chart-line', color: 'from-green-500 to-green-600' },
+    { label: 'Total Orders', value: stats.totalOrders.toLocaleString(), sub: stats.todayOrders + ' today', icon: 'fa-cart-shopping', color: 'from-blue-500 to-blue-600' },
+    { label: 'Total Users', value: stats.totalUsers.toLocaleString(), sub: '+' + stats.newUsersThisMonth + ' this month', icon: 'fa-users', color: 'from-purple-500 to-purple-600' },
+  ].forEach(s => { %>
+  <div class="stat-card p-5">
+    <div class="flex items-start justify-between mb-3">
+      <div>
+        <p class="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1"><%= s.label %></p>
+        <p class="text-2xl font-black text-white"><%= s.value %></p>
+        <p class="text-xs text-gray-500 mt-1"><%= s.sub %></p>
+      </div>
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-br <%= s.color %> flex items-center justify-center shadow-lg flex-shrink-0">
+        <i class="fa-solid <%= s.icon %> text-white text-sm"></i>
+      </div>
+    </div>
+  </div>
+  <% }) %>
+</div>
+
+<!-- Alert Cards -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+  <a href="/admin/orders?status=pending" class="stat-card p-4 flex items-center gap-4 hover:border-yellow-500/30 transition-colors border">
+    <div class="w-10 h-10 rounded-xl bg-yellow-500/20 flex items-center justify-center"><i class="fa-solid fa-clock text-yellow-400"></i></div>
+    <div><p class="text-xl font-black text-white"><%= stats.pendingOrders %></p><p class="text-xs text-gray-500">Pending Orders</p></div>
+  </a>
+  <a href="/admin/stock-alerts" class="stat-card p-4 flex items-center gap-4 hover:border-red-500/30 transition-colors border">
+    <div class="w-10 h-10 rounded-xl bg-red-500/20 flex items-center justify-center"><i class="fa-solid fa-triangle-exclamation text-red-400"></i></div>
+    <div><p class="text-xl font-black text-white"><%= stats.lowStockProducts %></p><p class="text-xs text-gray-500">Low / Out of Stock</p></div>
+  </a>
+  <a href="/admin/products" class="stat-card p-4 flex items-center gap-4 hover:border-green-500/30 transition-colors border">
+    <div class="w-10 h-10 rounded-xl bg-green-500/20 flex items-center justify-center"><i class="fa-solid fa-box-open text-green-400"></i></div>
+    <div><p class="text-xl font-black text-white"><%= stats.totalProducts %></p><p class="text-xs text-gray-500">Active Products</p></div>
+  </a>
+</div>
+
+<!-- Charts Row -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+  <!-- Revenue Chart -->
+  <div class="lg:col-span-2 card p-5">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-bold text-white">Revenue — Last 7 Days</h3>
+      <a href="/admin/analytics" class="text-xs text-accent-500 hover:text-accent-400">View Full Report →</a>
+    </div>
+    <canvas id="revenueChart" height="80"></canvas>
+  </div>
+
+  <!-- Orders by Status Donut -->
+  <div class="card p-5">
+    <h3 class="font-bold text-white mb-4">Orders by Status</h3>
+    <canvas id="statusChart" height="180"></canvas>
+    <div class="mt-4 space-y-2">
+      <% ordersByStatus.slice(0,5).forEach((s, i) => {
+        const colors = ['#f0a500','#3b82f6','#10b981','#8b5cf6','#ef4444'];
+      %>
+      <div class="flex items-center justify-between text-xs">
+        <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full" style="background:<%= colors[i] %>"></span><span class="text-gray-400 capitalize"><%= s._id %></span></div>
+        <span class="text-gray-300 font-semibold"><%= s.count %></span>
+      </div>
+      <% }) %>
+    </div>
+  </div>
+</div>
+
+<!-- Bottom Row: Recent Orders + Top Products -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+  <!-- Recent Orders -->
+  <div class="lg:col-span-2 card">
+    <div class="flex items-center justify-between p-5 border-b border-white/5">
+      <h3 class="font-bold text-white">Recent Orders</h3>
+      <a href="/admin/orders" class="text-xs text-accent-500 hover:text-accent-400">View All →</a>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead><tr class="text-xs text-gray-500 uppercase tracking-wider">
+          <th class="text-left px-5 py-3">Order</th>
+          <th class="text-left px-5 py-3">Customer</th>
+          <th class="text-left px-5 py-3">Amount</th>
+          <th class="text-left px-5 py-3">Status</th>
+          <th class="text-left px-5 py-3">Date</th>
+        </tr></thead>
+        <tbody class="divide-y divide-white/5">
+          <% recentOrders.forEach(order => {
+            const statusColors = { pending:'bg-yellow-500/20 text-yellow-400', confirmed:'bg-blue-500/20 text-blue-400', packed:'bg-teal-500/20 text-teal-400', dispatched:'bg-indigo-500/20 text-indigo-400', delivered:'bg-green-500/20 text-green-400', cancelled:'bg-red-500/20 text-red-400', returned:'bg-orange-500/20 text-orange-400', refunded:'bg-gray-500/20 text-gray-400' };
+            const sc = statusColors[order.orderStatus] || 'bg-gray-500/20 text-gray-400';
+          %>
+          <tr class="hover:bg-white/5 transition-colors">
+            <td class="px-5 py-3"><a href="/admin/orders/<%= order._id %>" class="text-accent-400 font-semibold hover:underline">#<%= order.orderNumber %></a></td>
+            <td class="px-5 py-3"><span class="text-gray-300"><%= order.user?.name || 'N/A' %></span></td>
+            <td class="px-5 py-3 font-semibold text-white">₹<%= order.totalAmount.toLocaleString('en-IN') %></td>
+            <td class="px-5 py-3"><span class="badge <%= sc %> capitalize"><%= order.orderStatus %></span></td>
+            <td class="px-5 py-3 text-gray-500 text-xs"><%= new Date(order.createdAt).toLocaleDateString('en-IN', {day:'numeric',month:'short'}) %></td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Top Products -->
+  <div class="card">
+    <div class="flex items-center justify-between p-5 border-b border-white/5">
+      <h3 class="font-bold text-white">Top Products</h3>
+      <a href="/admin/products" class="text-xs text-accent-500">View All →</a>
+    </div>
+    <div class="p-4 space-y-3">
+      <% topProducts.forEach((p, i) => { 
+        // Calculate dynamic display image matching product-grid logic
+        const vt = p.variantType || 'none';
+        let displayImg = p.images?.[0]?.url || p.thumbnail;
+        if (vt === 'color' || vt === 'color_size') {
+          const firstActiveColor = (p.colorVariants || []).find(cv => cv.isActive && cv.images?.length);
+          if (firstActiveColor) displayImg = firstActiveColor.images[0].url;
+        }
+        displayImg = displayImg || '/images/placeholder.png';
+      %>
+      <div class="flex items-center gap-3">
+        <span class="text-sm font-black text-gray-600 w-5">#<%= i+1 %></span>
+        <img src="<%= displayImg %>" class="w-10 h-10 rounded-lg object-cover bg-gray-800 flex-shrink-0" alt="<%= p.name %>"/>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium text-gray-200 truncate"><%= p.name %></p>
+          <p class="text-xs text-gray-500"><%= p.salesCount || 0 %> sold • ₹<%= p.basePrice?.toLocaleString('en-IN') %></p>
+        </div>
+      </div>
+      <% }) %>
+    </div>
+  </div>
+</div>
+
+<script>
+// Revenue Chart
+const revenueData = <%- JSON.stringify(revenueByDay) %>;
+const labels = revenueData.map(d => new Date(d._id).toLocaleDateString('en-IN', {day:'numeric',month:'short'}));
+const revenues = revenueData.map(d => d.revenue);
+
+new Chart(document.getElementById('revenueChart'), {
+  type: 'line',
+  data: {
+    labels,
+    datasets: [{
+      label: 'Revenue (₹)',
+      data: revenues,
+      borderColor: '#f0a500',
+      backgroundColor: 'rgba(240,165,0,0.08)',
+      borderWidth: 2.5,
+      pointBackgroundColor: '#f0a500',
+      pointRadius: 4,
+      tension: 0.4,
+      fill: true,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#6b7280', font: { size: 11 } } },
+      y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#6b7280', font: { size: 11 }, callback: v => '₹' + (v/1000).toFixed(0) + 'k' } }
+    }
+  }
+});
+
+// Status Donut
+const statusData = <%- JSON.stringify(ordersByStatus) %>;
+const statusColors = ['#f0a500','#3b82f6','#10b981','#8b5cf6','#ef4444','#6b7280'];
+new Chart(document.getElementById('statusChart'), {
+  type: 'doughnut',
+  data: {
+    labels: statusData.map(s => s._id),
+    datasets: [{ data: statusData.map(s => s.count), backgroundColor: statusColors, borderWidth: 0, hoverOffset: 4 }]
+  },
+  options: {
+    responsive: true,
+    cutout: '72%',
+    plugins: { legend: { display: false } }
+  }
+});
+</script>

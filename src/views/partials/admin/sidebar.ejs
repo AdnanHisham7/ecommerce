@@ -1,0 +1,130 @@
+<%
+  const u = currentUser;
+  const isAdmin = u && u.role === 'admin';
+  const hasPerm = (p) => isAdmin || (u && u.permissions && u.permissions.includes(p));
+  const path = locals.currentPath || '';
+  const active = (href) => path.startsWith(href) ? 'sidebar-link-active' : '';
+%>
+<aside class="w-64 flex-shrink-0 bg-[#0a0a18] border-r border-white/5 flex flex-col overflow-hidden" id="sidebar">
+  <!-- Logo -->
+  <div class="p-5 border-b border-white/5">
+    <a href="/admin/dashboard" class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-full flex items-center justify-center shadow-lg overflow-hidden">
+        <img src="/images/logo.svg" alt="Logo" class="w-full h-full object-cover" />
+      </div>
+      <div>
+        <p class="font-black text-white text-base leading-tight">AD21 store</p>
+        <p class="text-xs text-gray-500"><%= isAdmin ? 'Admin Panel' : 'Staff Panel' %></p>
+      </div>
+    </a>
+  </div>
+
+  <!-- Nav -->
+  <nav class="flex-1 overflow-y-auto p-3 space-y-0.5">
+    <!-- Main -->
+    <p class="text-xs text-gray-600 uppercase tracking-widest font-semibold px-3 py-2 mt-2">Main</p>
+    <a href="/admin/dashboard" class="sidebar-link <%= active('/admin/dashboard') %>">
+      <i class="fa-solid fa-chart-line w-4 text-center"></i>Dashboard
+    </a>
+
+    <% if (hasPerm('view_analytics')) { %>
+    <a href="/admin/analytics" class="sidebar-link <%= active('/admin/analytics') %>">
+      <i class="fa-solid fa-chart-pie w-4 text-center"></i>Analytics
+    </a>
+    <% } %>
+
+    <!-- Catalog -->
+    <% if (hasPerm('manage_products') || hasPerm('manage_categories')) { %>
+    <p class="text-xs text-gray-600 uppercase tracking-widest font-semibold px-3 py-2 mt-3">Catalog</p>
+    <% if (hasPerm('manage_products')) { %>
+    <a href="/admin/products" class="sidebar-link <%= active('/admin/products') %>">
+      <i class="fa-solid fa-box-open w-4 text-center"></i>Products
+    </a>
+    <% } %>
+    <% if (hasPerm('manage_categories')) { %>
+    <a href="/admin/categories" class="sidebar-link <%= active('/admin/categories') %>">
+      <i class="fa-solid fa-layer-group w-4 text-center"></i>Categories
+    </a>
+    <% } %>
+    <% if (hasPerm('manage_products')) { %>
+    <a href="/admin/stock-alerts" class="sidebar-link <%= active('/admin/stock-alerts') %>">
+      <i class="fa-solid fa-triangle-exclamation w-4 text-center text-yellow-500"></i>Stock Alerts
+    </a>
+    <% } %>
+    <% } %>
+
+    <!-- Commerce -->
+    <% if (hasPerm('manage_orders') || hasPerm('manage_coupons') || hasPerm('manage_offers') || hasPerm('manage_banners')) { %>
+    <p class="text-xs text-gray-600 uppercase tracking-widest font-semibold px-3 py-2 mt-3">Commerce</p>
+    <% if (hasPerm('manage_orders')) { %>
+    <a href="/admin/orders" class="sidebar-link <%= active('/admin/orders') %>">
+      <i class="fa-solid fa-cart-shopping w-4 text-center"></i>Orders
+    </a>
+    <% } %>
+    <% if (hasPerm('manage_coupons')) { %>
+    <a href="/admin/coupons" class="sidebar-link <%= active('/admin/coupons') %>">
+      <i class="fa-solid fa-ticket w-4 text-center"></i>Coupons
+    </a>
+    <% } %>
+    <% if (hasPerm('manage_offers')) { %>
+    <a href="/admin/offers" class="sidebar-link <%= active('/admin/offers') %>">
+      <i class="fa-solid fa-tag w-4 text-center"></i>Offers
+    </a>
+    <% } %>
+    <% if (hasPerm('manage_banners')) { %>
+    <a href="/admin/banners" class="sidebar-link <%= active('/admin/banners') %>">
+      <i class="fa-solid fa-image w-4 text-center"></i>Banners
+    </a>
+    <% } %>
+    <% } %>
+
+    <!-- Users -->
+    <% if (hasPerm('manage_users') || hasPerm('manage_staff')) { %>
+    <p class="text-xs text-gray-600 uppercase tracking-widest font-semibold px-3 py-2 mt-3">Users</p>
+    <% if (hasPerm('manage_users')) { %>
+    <a href="/admin/users" class="sidebar-link <%= active('/admin/users') %>">
+      <i class="fa-solid fa-users w-4 text-center"></i>All Users
+    </a>
+    <% } %>
+    <% if (hasPerm('manage_staff')) { %>
+    <a href="/admin/staff" class="sidebar-link <%= active('/admin/staff') %>">
+      <i class="fa-solid fa-user-shield w-4 text-center"></i>Staff
+    </a>
+    <% } %>
+    <% } %>
+
+    <!-- System -->
+    <% if (hasPerm('view_analytics') || hasPerm('manage_settings')) { %>
+    <p class="text-xs text-gray-600 uppercase tracking-widest font-semibold px-3 py-2 mt-3">System</p>
+    <% if (hasPerm('view_analytics')) { %>
+    <a href="/admin/audit-logs" class="sidebar-link <%= active('/admin/audit-logs') %>">
+      <i class="fa-solid fa-scroll w-4 text-center"></i>Audit Logs
+    </a>
+    <% } %>
+    <% if (hasPerm('manage_settings')) { %>
+    <a href="/admin/homepage-layout" class="sidebar-link <%= active('/admin/homepage-layout') %>">
+      <i class="fa-solid fa-table-cells-large w-4 text-center"></i>Homepage Layout
+    </a>
+    <a href="/admin/feature-flags" class="sidebar-link <%= active('/admin/feature-flags') %>">
+      <i class="fa-solid fa-flag w-4 text-center"></i>Feature Flags
+    </a>
+    <% } %>
+    <% } %>
+  </nav>
+
+  <!-- User Info -->
+  <div class="p-4 border-t border-white/5">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-full bg-gradient-to-br from-accent-500 to-accent-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+        <%= u ? u.name.charAt(0).toUpperCase() : 'A' %>
+      </div>
+      <div class="flex-1 min-w-0">
+        <p class="text-sm font-semibold text-white truncate"><%= u ? u.name : 'Admin' %></p>
+        <p class="text-xs text-gray-500 capitalize"><%= u ? u.role : 'admin' %></p>
+      </div>
+      <a href="/admin/logout" class="p-2 hover:bg-red-900/20 rounded-lg transition-colors text-red-400 hover:text-red-300" title="Logout">
+        <i class="fa-solid fa-right-from-bracket text-sm"></i>
+      </a>
+    </div>
+  </div>
+</aside>
