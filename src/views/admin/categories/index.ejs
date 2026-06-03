@@ -1,0 +1,223 @@
+<% layout('layouts/admin') %>
+<div class="flex items-center justify-between mb-6">
+  <div><h2 class="text-xl font-bold text-white">Categories</h2></div>
+  <button onclick="openAddModal()" class="flex items-center gap-2 bg-gradient-to-r from-accent-500 to-accent-600 text-primary px-4 py-2.5 rounded-xl font-bold text-sm">
+    <i class="fa-solid fa-plus"></i> Add Category
+  </button>
+</div>
+
+<div class="card overflow-hidden">
+  <table class="w-full text-sm">
+    <thead>
+      <tr class="text-xs text-gray-500 uppercase tracking-wider border-b border-white/5">
+        <th class="text-left px-5 py-3">Name</th>
+        <th class="text-left px-5 py-3">Parent</th>
+        <th class="text-left px-5 py-3">Featured</th>
+        <th class="text-left px-5 py-3">Status</th>
+        <th class="text-left px-5 py-3">Actions</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-white/5">
+      <% categories.forEach(cat => { %>
+      <tr class="hover:bg-white/5 transition-colors">
+        <td class="px-5 py-3">
+          <div class="flex items-center gap-3">
+            <% if (cat.image) { %>
+              <img src="<%= cat.image %>" class="w-9 h-9 rounded-lg object-cover bg-gray-800"/>
+            <% } else { %>
+              <div class="w-9 h-9 rounded-lg bg-accent-500/20 flex items-center justify-center">
+                <i class="fa-solid fa-tag text-accent-400 text-sm"></i>
+              </div>
+            <% } %>
+            <span class="font-medium text-gray-200"><%= cat.name %></span>
+          </div>
+        </td>
+        <td class="px-5 py-3 text-gray-400"><%= cat.parent?.name || '—' %></td>
+        <td class="px-5 py-3">
+          <span class="badge <%= cat.isFeatured ? 'bg-accent-500/20 text-accent-400' : 'bg-gray-500/20 text-gray-500' %>">
+            <%= cat.isFeatured ? 'Yes' : 'No' %>
+          </span>
+        </td>
+        <td class="px-5 py-3">
+          <span class="badge <%= cat.isActive ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400' %>">
+            <%= cat.isActive ? 'Active' : 'Inactive' %>
+          </span>
+        </td>
+        <td class="px-5 py-3">
+          <div class="flex gap-2">
+           <button 
+              type="button"
+              data-category="<%= JSON.stringify(cat) %>" 
+              onclick="handleEditClick(this)" 
+              class="p-2 hover:bg-white/10 rounded-lg text-blue-400 transition-colors">
+              <i class="fa-solid fa-pen-to-square text-sm"></i>
+            </button>
+            <form action="/admin/categories/<%= cat._id %>/delete" method="POST" class="inline">
+              <button type="button" onclick="confirmDelete(this.form)" class="p-2 hover:bg-red-900/20 rounded-lg text-red-400 transition-colors">
+                <i class="fa-solid fa-trash-can text-sm"></i>
+              </button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      <% }) %>
+      <% if (!categories.length) { %>
+        <tr><td colspan="5" class="px-5 py-12 text-center text-gray-500">No categories found</td></tr>
+      <% } %>
+    </tbody>
+  </table>
+</div>
+
+<div id="addCatModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+  <div class="absolute inset-0 transparent-black" onclick="closeAddModal()"></div>
+  <div class="relative bg-[#1a1a2e] border border-white/10 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+    <h3 class="font-bold text-white mb-5">Add Category</h3>
+    <form action="/admin/categories/add" method="POST" enctype="multipart/form-data" class="space-y-3">
+      <input type="text" name="name" required placeholder="Category Name" class="w-full rounded-xl px-4 py-3 text-sm"/>
+      <textarea name="description" rows="2" placeholder="Description (optional)" class="w-full rounded-xl px-4 py-3 text-sm resize-none"></textarea>
+      
+      <select name="parent" class="w-full rounded-xl px-4 py-3 text-sm">
+        <option value="">No Parent (Top Level)</option>
+        <% categories.filter(c=>!c.parent).forEach(c => { %>
+          <option value="<%= c._id %>"><%= c.name %></option>
+        <% }) %>
+      </select>
+      
+      <div class="flex gap-3">
+        <label class="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
+          <input type="checkbox" name="isFeatured" value="true" class="accent-yellow-500"/> Featured
+        </label>
+        <input type="number" name="sortOrder" placeholder="Sort Order" value="0" class="w-full rounded-xl px-3 py-2 text-sm"/>
+      </div>
+      
+     <div class="border-2 border-dashed border-white/10 rounded-xl hover:border-accent-500/50 cursor-pointer relative overflow-hidden group w-full h-48 flex flex-col items-center justify-center bg-white/5" onclick="document.getElementById('catImg').click()">
+        <div id="addImgPlaceholder" class="space-y-1 text-center">
+          <i class="fa-solid fa-image text-gray-500 text-2xl block mb-1"></i>
+          <p class="text-xs text-gray-400 font-medium">Click to upload image</p>
+          <p class="text-[10px] text-gray-600">Supports: JPG, PNG, WEBP</p>
+        </div>
+        <img id="addImgPreview" class="hidden absolute inset-0 w-full h-full object-cover z-10" />
+        <div id="addImgOverlay" class="hidden absolute inset-0 transparent-black z-20 items-center justify-center transition-opacity opacity-0 group-hover:opacity-100">
+          <p class="text-xs text-white font-semibold flex items-center gap-2"><i class="fa-solid fa-retweet text-sm"></i> Change Image</p>
+        </div>
+        <input type="file" id="catImg" name="image" accept="image/*" class="hidden" onchange="previewImage(this, 'addImgPreview', 'addImgPlaceholder', 'addImgOverlay')"/>
+      </div>
+      
+      <div class="flex gap-3 pt-2">
+        <button type="submit" class="flex-1 bg-accent-500 text-primary py-2.5 rounded-xl font-bold text-sm">Create</button>
+        <button type="button" onclick="closeAddModal()" class="px-4 py-2.5 border border-white/10 rounded-xl text-gray-400 text-sm">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="editCatModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+  <div class="absolute inset-0 transparent-black" onclick="closeEditModal()"></div>
+  <div class="relative bg-[#1a1a2e] border border-white/10 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+    <h3 class="font-bold text-white mb-5">Edit Category</h3>
+    <form id="editCatForm" method="POST" enctype="multipart/form-data" class="space-y-3">
+      <input type="text" name="name" id="editCatName" required placeholder="Category Name" class="w-full rounded-xl px-4 py-3 text-sm"/>
+      <textarea name="description" id="editCatDesc" rows="2" placeholder="Description" class="w-full rounded-xl px-4 py-3 text-sm resize-none"></textarea>
+      
+      <div class="flex gap-3">
+        <label class="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
+          <input type="checkbox" name="isFeatured" id="editCatFeatured" value="true" class="accent-yellow-500"/> Featured
+        </label>
+        <label class="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
+          <input type="checkbox" name="isActive" id="editCatActive" value="true" class="accent-yellow-500"/> Active
+        </label>
+      </div>
+
+      <div class="border-2 border-dashed border-white/10 rounded-xl hover:border-accent-500/50 cursor-pointer relative overflow-hidden group w-full h-48 flex flex-col items-center justify-center bg-white/5" onclick="document.getElementById('editCatImg').click()">
+        <div id="editImgPlaceholder" class="space-y-1 text-center">
+          <i class="fa-solid fa-image text-gray-500 text-2xl block mb-1"></i>
+          <p class="text-xs text-gray-400 font-medium">Click to update image (optional)</p>
+          <p class="text-[10px] text-gray-600">Supports: JPG, PNG, WEBP</p>
+        </div>
+        <img id="editCatImgPreview" class="hidden absolute inset-0 w-full h-full object-cover z-10" />
+        <div id="editImgOverlay" class="hidden absolute inset-0 transparent-black z-20 items-center justify-center transition-opacity opacity-0 group-hover:opacity-100">
+          <p class="text-xs text-white font-semibold flex items-center gap-2"><i class="fa-solid fa-retweet text-sm"></i> Change Image</p>
+        </div>
+        <input type="file" id="editCatImg" name="image" accept="image/*" class="hidden" onchange="previewImage(this, 'editCatImgPreview', 'editImgPlaceholder', 'editImgOverlay')"/>
+      </div>
+
+      <div class="flex gap-3 pt-2">
+        <button type="submit" class="flex-1 bg-accent-500 text-primary py-2.5 rounded-xl font-bold text-sm">Save</button>
+        <button type="button" onclick="closeEditModal()" class="px-4 py-2.5 border border-white/10 rounded-xl text-gray-400 text-sm">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+// Generic dynamic image preview handler
+function previewImage(input, previewId, placeholderId, overlayId) {
+  const preview = document.getElementById(previewId);
+  const placeholder = document.getElementById(placeholderId);
+  const overlay = document.getElementById(overlayId);
+  
+  if (input.files && input.files[0]) {
+    const reader = new FileReader();
+    
+    // Clean memory mapping on load
+    preview.src = URL.createObjectURL(input.files[0]);
+    
+    preview.classList.remove('hidden');
+    placeholder.classList.add('hidden');
+    if (overlay) overlay.classList.remove('hidden', 'flex'); // sets up flex trigger context
+    if (overlay) overlay.classList.add('flex');
+  }
+}
+
+// Resets image element data states when modals are swapped
+function clearPreview(previewId, placeholderId, overlayId, inputId) {
+  document.getElementById(previewId).src = '';
+  document.getElementById(previewId).classList.add('hidden');
+  document.getElementById(placeholderId).classList.remove('hidden');
+  if(document.getElementById(overlayId)) document.getElementById(overlayId).classList.add('hidden');
+  document.getElementById(inputId).value = '';
+}
+
+function openAddModal() {
+  document.getElementById('addCatModal').classList.remove('hidden');
+}
+
+function closeAddModal() {
+  document.getElementById('addCatModal').classList.add('hidden');
+  clearPreview('addImgPreview', 'addImgPlaceholder', 'addImgOverlay', 'catImg');
+}
+
+function closeEditModal() {
+  document.getElementById('editCatModal').classList.add('hidden');
+  clearPreview('editCatImgPreview', 'editImgPlaceholder', 'editImgOverlay', 'editCatImg');
+}
+
+function handleEditClick(button) {
+  // Grab the JSON string from the data attribute and parse it safely
+  const catData = JSON.parse(button.getAttribute('data-category'));
+  editCat(catData);
+}
+
+function editCat(cat) {
+  document.getElementById('editCatName').value = cat.name;
+  document.getElementById('editCatDesc').value = cat.description || '';
+  document.getElementById('editCatFeatured').checked = cat.isFeatured;
+  document.getElementById('editCatActive').checked = cat.isActive;
+  document.getElementById('editCatForm').action = `/admin/categories/${cat._id}/edit`;
+  
+  // Show existing cloud image preview if it already exists in the record
+  if (cat.image) {
+    const preview = document.getElementById('editCatImgPreview');
+    const placeholder = document.getElementById('editImgPlaceholder');
+    const overlay = document.getElementById('editImgOverlay');
+    
+    preview.src = cat.image;
+    preview.classList.remove('hidden');
+    placeholder.classList.add('hidden');
+    overlay.classList.remove('hidden');
+    overlay.classList.add('flex');
+  }
+  
+  document.getElementById('editCatModal').classList.remove('hidden');
+}
+</script>

@@ -75,6 +75,44 @@ const getDashboard = asyncHandler(async (req, res) => {
 // ==================== PRODUCTS ====================
 
 
+const getCategories = asyncHandler(async (req, res) => {
+  const categories = await Category.find().populate('parent', 'name').sort('sortOrder').lean();
+  res.render('admin/categories/index', { title: 'Categories', categories });
+});
+
+
+const addCategory = asyncHandler(async (req, res) => {
+  const { name, description, parent, isFeatured, sortOrder, seoTitle, seoDescription } = req.body;
+  const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+  const image = req.file ? req.file.path : null;
+  const imagePublicId = req.file ? req.file.filename : null;
+
+  await Category.create({ name, slug, description, parent: parent || null, isFeatured: isFeatured === 'true', sortOrder: parseInt(sortOrder) || 0, image, imagePublicId, seo: { metaTitle: seoTitle, metaDescription: seoDescription }, createdBy: req.user._id });
+  req.flash('success', 'Category created');
+  res.redirect('/admin/categories');
+});
+
+
+const updateCategory = asyncHandler(async (req, res) => {
+  const { name, description, parent, isFeatured, sortOrder, isActive } = req.body;
+  const updates = { name, description, parent: parent || null, isFeatured: isFeatured === 'true', sortOrder: parseInt(sortOrder) || 0, isActive: isActive === 'true' };
+  if (name) updates.slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+  if (req.file) { updates.image = req.file.path; updates.imagePublicId = req.file.filename; }
+  await Category.findByIdAndUpdate(req.params.id, updates);
+  req.flash('success', 'Category updated');
+  res.redirect('/admin/categories');
+});
+
+
+const deleteCategory = asyncHandler(async (req, res) => {
+  await Category.findByIdAndUpdate(req.params.id, { isActive: false });
+  req.flash('success', 'Category deactivated');
+  res.redirect('/admin/categories');
+});
+
+// ==================== USERS ====================
+
+
 const getAdminLogin = asyncHandler(async (req, res) => {
   if (req.session?.adminId) return res.redirect('/admin/dashboard');
   res.render('admin/auth/login', { title: 'Admin Login' });
@@ -113,6 +151,10 @@ const adminLogout = asyncHandler(async (req, res) => {
 
 module.exports = {
   getDashboard,
+  getCategories,
+  addCategory,
+  updateCategory,
+  deleteCategory,
   getAdminLogin,
   adminLogin,
   adminLogout,
