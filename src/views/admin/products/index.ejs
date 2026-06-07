@@ -1,0 +1,143 @@
+<% layout('layouts/admin') %>
+
+<div class="flex items-center justify-between mb-6">
+  <div>
+    <h2 class="text-xl font-bold text-white">All Products</h2>
+    <p class="text-gray-500 text-sm"><%= pagination.total %> total products</p>
+  </div>
+  <a href="/admin/products/add" class="flex items-center gap-2 bg-gradient-to-r from-accent-500 to-accent-600 text-primary px-4 py-2.5 rounded-xl font-bold text-sm hover:from-accent-400 hover:to-accent-500 transition-all shadow-lg">
+    <i class="fa-solid fa-plus"></i> Add Product
+  </a>
+</div>
+
+<!-- Filters -->
+<div class="card p-4 mb-5">
+  <form method="GET" action="/admin/products" class="flex flex-wrap gap-3">
+    <input type="text" name="search" value="<%= filters.search || '' %>" placeholder="Search products..."
+      class="flex-1 min-w-[200px] rounded-lg px-3 py-2 text-sm"/>
+    <select name="category" class="rounded-lg px-3 py-2 text-sm">
+      <option value="">All Categories</option>
+      <% categories.forEach(c => { %><option value="<%= c._id %>" <%= filters.category === c._id.toString() ? 'selected' : '' %>><%= c.name %></option><% }) %>
+    </select>
+    <select name="type" class="rounded-lg px-3 py-2 text-sm">
+      <option value="">All Types</option>
+      <% ['jersey','ball','boots','equipment','clothing','goalkeeper','training','accessories'].forEach(t => { %><option value="<%= t %>" <%= filters.type===t?'selected':'' %> class="capitalize"><%= t %></option><% }) %>
+    </select>
+    <select name="status" class="rounded-lg px-3 py-2 text-sm">
+      <option value="">All Status</option>
+      <option value="active" <%= filters.status==='active'?'selected':'' %>>Active</option>
+      <option value="inactive" <%= filters.status==='inactive'?'selected':'' %>>Inactive</option>
+    </select>
+    <select name="stock" class="rounded-lg px-3 py-2 text-sm">
+      <option value="">All Stock</option>
+      <option value="low" <%= filters.stock==='low'?'selected':'' %>>Low Stock</option>
+      <option value="out" <%= filters.stock==='out'?'selected':'' %>>Out of Stock</option>
+    </select>
+    <button type="submit" class="bg-accent-500 text-primary px-4 py-2 rounded-lg text-sm font-bold">Filter</button>
+    <a href="/admin/products" class="px-4 py-2 rounded-lg text-sm text-gray-400 hover:text-gray-200 border border-white/10">Clear</a>
+  </form>
+</div>
+
+<!-- Table -->
+<div class="card overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-xs text-gray-500 uppercase tracking-wider border-b border-white/5">
+          <th class="text-left px-5 py-3">Product</th>
+          <th class="text-left px-5 py-3">Category</th>
+          <th class="text-left px-5 py-3">Price</th>
+          <th class="text-left px-5 py-3">Stock</th>
+          <th class="text-left px-5 py-3">Rating</th>
+          <th class="text-left px-5 py-3">Status</th>
+          <th class="text-left px-5 py-3">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-white/5">
+        <% products.forEach(p => {
+          const stockColor = p.stockStatus === 'out_of_stock' ? 'text-red-400' : p.stockStatus === 'low_stock' ? 'text-yellow-400' : 'text-green-400';
+        %>
+        <tr class="hover:bg-white/5 transition-colors">
+          <td class="px-5 py-3">
+            <div class="flex items-center gap-3">
+              <%
+                const needsColorFallback = p.variantType === 'color' || p.variantType === 'color_size';
+                let adminThumb = p.images?.[0]?.url || p.thumbnail;
+                if (needsColorFallback && !adminThumb) {
+                  const firstActiveCV = (p.colorVariants || []).find(cv => cv.isActive && cv.images?.length);
+                  if (firstActiveCV) adminThumb = firstActiveCV.images[0].url;
+                }
+                adminThumb = adminThumb || '/images/placeholder.png';
+              %>
+              <img src="<%= adminThumb %>" class="w-10 h-10 rounded-lg object-cover bg-gray-800 flex-shrink-0"/>
+              <div class="min-w-0">
+                <p
+                  style="
+                    max-width: 280px;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                  "
+                  class="font-medium text-gray-200"
+                >
+                  <%= p.name %>
+                </p>
+                <p class="text-xs text-gray-500 capitalize"><%= p.brand || '—' %></p>
+              </div>
+            </div>
+          </td>
+          <td class="px-5 py-3 text-gray-400"><%= p.category?.name || '—' %></td>
+          <td class="px-5 py-3">
+            <p class="font-semibold text-white">₹<%= p.basePrice?.toLocaleString('en-IN') %></p>
+            <% if (p.discountPercent > 0) { %><p class="text-xs text-green-400"><%= p.discountPercent %>% off</p><% } %>
+          </td>
+          <td class="px-5 py-3">
+            <span class="font-semibold <%= stockColor %>">
+              <%= p.variantType !== 'none'
+                ? (p.variants?.reduce((s, v) => s + (v.isActive ? v.stock : 0), 0) || 0)
+                : (p.stock || 0) %>
+            </span>
+            <p class="text-xs text-gray-600 capitalize"><%= p.stockStatus?.replace('_', ' ') %></p>
+          </td>
+          <td class="px-5 py-3">
+            <div class="flex items-center gap-1">
+              <i class="fa-solid fa-star text-accent-400 text-xs"></i>
+              <span class="text-gray-300 text-xs"><%= (p.avgRating||0).toFixed(1) %> (<%= p.reviewCount||0 %>)</span>
+            </div>
+          </td>
+          <td class="px-5 py-3">
+            <span class="badge <%= p.isActive ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400' %>">
+              <%= p.isActive ? 'Active' : 'Inactive' %>
+            </span>
+          </td>
+          <td class="px-5 py-3">
+            <div class="flex items-center gap-2">
+              <a href="/admin/products/<%= p._id %>/edit" class="p-2 hover:bg-white/10 rounded-lg text-blue-400 hover:text-blue-300 transition-colors" title="Edit"><i class="fa-solid fa-pen-to-square text-sm"></i></a>
+              <a href="/products/<%= p.slug %>" target="_blank" class="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-gray-200 transition-colors" title="View"><i class="fa-solid fa-external-link text-sm"></i></a>
+              <form action="/admin/products/<%= p._id %>/delete" method="POST" class="inline">
+                <button type="button" onclick="confirmDelete(this.form, 'Deactivate this product?')" class="p-2 hover:bg-red-900/20 rounded-lg text-red-400 hover:text-red-300 transition-colors" title="Delete"><i class="fa-solid fa-trash-can text-sm"></i></button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        <% }) %>
+        <% if (!products.length) { %>
+        <tr><td colspan="7" class="px-5 py-12 text-center text-gray-500"><i class="fa-solid fa-box-open text-2xl mb-2 block"></i>No products found</td></tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  <% if (pagination.totalPages > 1) { %>
+  <div class="flex items-center justify-between px-5 py-4 border-t border-white/5">
+    <p class="text-xs text-gray-500">Showing <%= ((pagination.page-1)*15)+1 %>–<%= Math.min(pagination.page*15, pagination.total) %> of <%= pagination.total %></p>
+    <div class="flex gap-2">
+      <% for(let p=Math.max(1,pagination.page-2); p<=Math.min(pagination.totalPages,pagination.page+2); p++) { %>
+      <a href="?<%= new URLSearchParams({...filters, page:p}).toString() %>"
+        class="w-8 h-8 flex items-center justify-center rounded-lg text-xs font-bold transition-all <%= p===pagination.page ? 'bg-accent-500 text-primary' : 'text-gray-400 hover:bg-white/10' %>"><%= p %></a>
+      <% } %>
+    </div>
+  </div>
+  <% } %>
+</div>

@@ -1,0 +1,311 @@
+<% layout('layouts/admin') %>
+
+<div class="flex items-center justify-between mb-6">
+  <div>
+    <h2 class="text-xl font-bold text-white">Add New Product</h2>
+    <p class="text-gray-500 text-sm">Fill in all the product details</p>
+  </div>
+  <a href="/admin/products" class="flex items-center gap-2 px-4 py-2 border border-white/10 rounded-xl text-sm text-gray-400 hover:text-gray-200 hover:border-white/20 transition-all">
+    <i class="fa-solid fa-arrow-left text-xs"></i> Back
+  </a>
+</div>
+
+<!-- ==================== STEP 1: VARIANT TYPE ==================== -->
+<div class="card p-6 mb-6">
+  <h3 class="font-bold text-white mb-2 text-sm uppercase tracking-wider">Step 1 — Does this product have variants?</h3>
+  <p class="text-xs text-gray-500 mb-4">Choose the variant type first. This determines which fields are required below.</p>
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-3" id="vtSelector">
+    <% [
+      ['none',       'fa-box',        'No Variants',   'Simple product with a single price & stock'],
+      ['color',      'fa-palette',    'Color Variants','Price/stock/images set per color'],
+      ['size',       'fa-ruler',      'Size Variants', 'Price/stock set per size; shared images'],
+      ['color_size', 'fa-table-cells','Color + Size',  'Price/stock/images set per color+size combo'],
+    ].forEach(([val, icon, label, hint]) => { %>
+    <button type="button"
+      onclick="setVariantType('<%= val %>')"
+      id="vt-<%= val %>"
+      class="vt-choice-btn rounded-xl border-2 px-3 py-4 text-left transition-all
+        <%= val === 'none' ? 'border-accent-500 bg-accent-500/10' : 'border-white/10 hover:border-white/20' %>">
+      <i class="fa-solid <%= icon %> text-lg mb-2 block <%= val === 'none' ? 'text-accent-400' : 'text-gray-500' %>"></i>
+      <p class="font-bold text-sm <%= val === 'none' ? 'text-accent-400' : 'text-gray-300' %>"><%= label %></p>
+      <p class="text-xs text-gray-500 mt-0.5 leading-tight"><%= hint %></p>
+    </button>
+    <% }) %>
+  </div>
+</div>
+
+<form action="/admin/products/add" method="POST" enctype="multipart/form-data" id="addProductForm">
+  <input type="hidden" name="variantType" id="variantTypeInput" value="none"/>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Main Details -->
+    <div class="lg:col-span-2 space-y-5">
+      <div class="card p-6">
+        <h3 class="font-bold text-white mb-4 text-sm uppercase tracking-wider">Product Information</h3>
+        <div class="space-y-4">
+          <div>
+            <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Product Name *</label>
+            <input type="text" name="name" required placeholder="e.g. Nike Dri-FIT Academy Jersey" class="w-full rounded-xl px-4 py-3 text-sm"/>
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Brand</label>
+            <input type="text" name="brand" placeholder="Nike, Adidas..." class="w-full rounded-xl px-4 py-3 text-sm"/>
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Short Description</label>
+            <input type="text" name="shortDescription" placeholder="Brief product summary (shown in cards)" class="w-full rounded-xl px-4 py-3 text-sm"/>
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Full Description *</label>
+            <textarea name="description" rows="5" required placeholder="Detailed product description..." class="w-full rounded-xl px-4 py-3 text-sm resize-none"></textarea>
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Tags (comma separated)</label>
+            <input type="text" name="tags" placeholder="jersey, nike, football, blue" class="w-full rounded-xl px-4 py-3 text-sm"/>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pricing & Stock — only shown for relevant variant types -->
+      <div class="card p-6" id="pricingSection">
+        <h3 class="font-bold text-white mb-1 text-sm uppercase tracking-wider">Pricing & Stock</h3>
+        <p id="pricingNote" class="text-xs text-gray-500 mb-4">These fields apply to this product directly (no variants).</p>
+        <div class="grid grid-cols-2 gap-4">
+          <div id="basePriceField">
+            <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Selling Price (₹) *</label>
+            <input type="number" name="basePrice" id="basePriceInput" required min="0" step="0.01" placeholder="999" class="w-full rounded-xl px-4 py-3 text-sm"/>
+          </div>
+          <div id="compareAtField">
+            <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Compare At Price (₹)</label>
+            <input type="number" name="compareAtPrice" min="0" step="0.01" placeholder="1499 (original price)" class="w-full rounded-xl px-4 py-3 text-sm"/>
+          </div>
+          <div id="stockField">
+            <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Stock Quantity</label>
+            <input type="number" name="stock" min="0" value="0" class="w-full rounded-xl px-4 py-3 text-sm"/>
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Low Stock Alert At</label>
+            <input type="number" name="lowStockThreshold" min="1" value="5" class="w-full rounded-xl px-4 py-3 text-sm"/>
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Weight (grams)</label>
+            <input type="number" name="weight" min="0" placeholder="500" class="w-full rounded-xl px-4 py-3 text-sm"/>
+          </div>
+        </div>
+      </div>
+
+      <!-- Specifications -->
+      <div class="card p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-bold text-white text-sm uppercase tracking-wider">Specifications</h3>
+          <button type="button" onclick="addSpec()" class="text-xs text-accent-500 hover:text-accent-400 font-semibold flex items-center gap-1"><i class="fa-solid fa-plus text-xs"></i> Add Spec</button>
+        </div>
+        <div id="specsContainer" class="space-y-2">
+          <div class="spec-row flex gap-2">
+            <input type="text" placeholder="Key (e.g. Material)" class="spec-key flex-1 rounded-lg px-3 py-2 text-sm"/>
+            <input type="text" placeholder="Value (e.g. Polyester)" class="spec-val flex-1 rounded-lg px-3 py-2 text-sm"/>
+            <button type="button" onclick="this.parentElement.remove()" class="text-red-400 hover:text-red-300 px-2"><i class="fa-solid fa-xmark"></i></button>
+          </div>
+        </div>
+        <input type="hidden" name="specifications" id="specificationsInput"/>
+      </div>
+
+      <!-- SEO -->
+      <div class="card p-6">
+        <h3 class="font-bold text-white mb-4 text-sm uppercase tracking-wider">SEO</h3>
+        <div class="space-y-3">
+          <input type="text" name="seoTitle" placeholder="SEO Meta Title" class="w-full rounded-xl px-4 py-3 text-sm"/>
+          <textarea name="seoDescription" rows="2" placeholder="SEO Meta Description" class="w-full rounded-xl px-4 py-3 text-sm resize-none"></textarea>
+          <input type="text" name="seoKeywords" placeholder="Keywords (comma separated)" class="w-full rounded-xl px-4 py-3 text-sm"/>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="space-y-5">
+      <!-- Images — conditionally shown -->
+      <div class="card p-5" id="imagesSection">
+        <h3 class="font-bold text-white mb-1 text-sm uppercase tracking-wider">Product Images</h3>
+        <p id="imagesNote" class="text-xs text-gray-500 mb-3">Main product images.</p>
+        <div class="border-2 border-dashed border-white/10 rounded-xl p-6 text-center hover:border-accent-500/50 transition-colors cursor-pointer" onclick="document.getElementById('imagesInput').click()">
+          <i class="fa-solid fa-cloud-arrow-up text-3xl text-gray-600 mb-2 block"></i>
+          <p class="text-sm text-gray-400 font-medium">Drop images here or click</p>
+          <p class="text-xs text-gray-600 mt-1">JPG, PNG, WebP up to 10MB each</p>
+        </div>
+        <input type="file" id="imagesInput" name="images" multiple accept="image/*" class="hidden" onchange="previewImages(this)"/>
+        <div id="imagePreview" class="grid grid-cols-3 gap-2 mt-3"></div>
+      </div>
+
+      <!-- Images hidden notice for color-based variants -->
+      <div class="card p-5 hidden" id="imagesHiddenNotice">
+        <div class="flex items-start gap-3">
+          <i class="fa-solid fa-circle-info text-blue-400 mt-0.5"></i>
+          <div>
+            <p class="text-sm font-semibold text-gray-200 mb-1">Images added per color</p>
+            <p class="text-xs text-gray-500">Since this product has color variants, product images are uploaded for each color separately in the Variant Manager (after saving).</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Category & Flags -->
+      <div class="card p-5 space-y-4">
+        <h3 class="font-bold text-white mb-2 text-sm uppercase tracking-wider">Organization</h3>
+        <div>
+          <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Category *</label>
+          <select name="category" required class="w-full rounded-xl px-4 py-3 text-sm">
+            <option value="">Select category</option>
+            <% categories.filter(c=>!c.parent).forEach(cat => { %>
+            <option value="<%= cat._id %>"><%= cat.name %></option>
+            <% }) %>
+          </select>
+        </div>
+        <div class="space-y-3">
+        <% [
+          ['isFeatured', 'Featured Product', false],
+          ['isNewArrival', 'New Arrival', false],
+          ['isBestSeller', 'Best Seller', false],
+        ].forEach(([name, label, checked]) => { %>
+          <label class="flex items-center gap-3 cursor-pointer select-none">
+            <div class="relative w-11 h-6 bg-gray-700 rounded-full transition-colors duration-300 peer-checked:bg-accent-500"
+                style="box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);">
+              <input
+                type="checkbox"
+                name="<%= name %>"
+                value="true"
+                <%= checked ? 'checked' : '' %>
+                class="sr-only peer"
+              />
+              <div class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-md
+                          transition-all duration-300 ease-in-out
+                          peer-checked:translate-x-5 peer-checked:shadow-lg">
+              </div>
+            </div>
+            <span class="text-sm text-gray-300"><%= label %></span>
+          </label>
+        <% }) %>
+        </div>
+      </div>
+
+      <!-- Submit -->
+      <div class="flex gap-3">
+        <button type="submit" onclick="buildSpecs()" class="flex-1 bg-gradient-to-r from-accent-500 to-accent-600 text-primary py-3 rounded-xl font-bold text-sm shadow-lg hover:from-accent-400 hover:to-accent-500 transition-all">
+          <i class="fa-solid fa-check mr-2"></i>Add Product
+        </button>
+        <a href="/admin/products" class="px-4 py-3 border border-white/10 rounded-xl text-gray-400 text-sm hover:border-white/20 transition-colors">Cancel</a>
+      </div>
+    </div>
+  </div>
+</form>
+
+<script>
+// ── Variant type selection ──────────────────────────────────────────
+let currentVT = 'none';
+
+function setVariantType(vt) {
+  currentVT = vt;
+  document.getElementById('variantTypeInput').value = vt;
+
+  // Update button styles
+  document.querySelectorAll('.vt-choice-btn').forEach(btn => {
+    btn.classList.remove('border-accent-500', 'bg-accent-500/10');
+    btn.classList.add('border-white/10');
+    btn.querySelector('i').classList.remove('text-accent-400');
+    btn.querySelector('i').classList.add('text-gray-500');
+    btn.querySelector('p').classList.remove('text-accent-400');
+    btn.querySelector('p').classList.add('text-gray-300');
+  });
+  const activeBtn = document.getElementById(`vt-${vt}`);
+  activeBtn.classList.add('border-accent-500', 'bg-accent-500/10');
+  activeBtn.classList.remove('border-white/10');
+  activeBtn.querySelector('i').classList.add('text-accent-400');
+  activeBtn.querySelector('i').classList.remove('text-gray-500');
+  activeBtn.querySelector('p').classList.add('text-accent-400');
+  activeBtn.querySelector('p').classList.remove('text-gray-300');
+
+  updateFieldVisibility(vt);
+}
+
+function updateFieldVisibility(vt) {
+  const pricingSection  = document.getElementById('pricingSection');
+  const pricingNote     = document.getElementById('pricingNote');
+  const basePriceField  = document.getElementById('basePriceField');
+  const compareAtField  = document.getElementById('compareAtField');
+  const stockField      = document.getElementById('stockField');
+  const basePriceInput  = document.getElementById('basePriceInput');
+  const imagesSection   = document.getElementById('imagesSection');
+  const imagesHidden    = document.getElementById('imagesHiddenNotice');
+
+  const needsBasePrice  = vt === 'none';
+  const needsBaseStock  = vt === 'none';
+  const needsBaseImages = vt === 'none' || vt === 'size';
+
+  // Price section visibility
+  if (vt === 'none') {
+    pricingNote.textContent = 'Set the price and stock for this simple product.';
+    basePriceField.classList.remove('hidden');
+    compareAtField.classList.remove('hidden');
+    stockField.classList.remove('hidden');
+    basePriceInput.required = true;
+  } else {
+    basePriceField.classList.add('hidden');
+    compareAtField.classList.add('hidden');
+    stockField.classList.add('hidden');
+    basePriceInput.required = false;
+    if (vt === 'size') {
+      pricingNote.textContent = 'Price and stock are set per size variant. Only the low stock threshold and weight apply here.';
+    } else {
+      pricingNote.textContent = 'Price and stock are set per variant. Only the low stock threshold and weight apply here.';
+    }
+  }
+
+  // Images
+  if (needsBaseImages) {
+    imagesSection.classList.remove('hidden');
+    imagesHidden.classList.add('hidden');
+    if (vt === 'size') {
+      document.querySelector('#imagesSection p').textContent = 'These images are shared across all size variants.';
+    } else {
+      document.querySelector('#imagesSection p').textContent = 'Main product images.';
+    }
+  } else {
+    imagesSection.classList.add('hidden');
+    imagesHidden.classList.remove('hidden');
+  }
+}
+
+// ── Specs ───────────────────────────────────────────────────────────
+function addSpec() {
+  const row = document.createElement('div');
+  row.className = 'spec-row flex gap-2';
+  row.innerHTML = `<input type="text" placeholder="Key" class="spec-key flex-1 rounded-lg px-3 py-2 text-sm bg-[#0f0f1a] border border-white/10 text-gray-200"/><input type="text" placeholder="Value" class="spec-val flex-1 rounded-lg px-3 py-2 text-sm bg-[#0f0f1a] border border-white/10 text-gray-200"/><button type="button" onclick="this.parentElement.remove()" class="text-red-400 hover:text-red-300 px-2"><i class="fa-solid fa-xmark"></i></button>`;
+  document.getElementById('specsContainer').appendChild(row);
+}
+
+function buildSpecs() {
+  const specs = [];
+  document.querySelectorAll('.spec-row').forEach(row => {
+    const key = row.querySelector('.spec-key').value.trim();
+    const val = row.querySelector('.spec-val').value.trim();
+    if (key && val) specs.push({ key, value: val });
+  });
+  document.getElementById('specificationsInput').value = JSON.stringify(specs);
+}
+
+function previewImages(input) {
+  const preview = document.getElementById('imagePreview');
+  preview.innerHTML = '';
+  Array.from(input.files).forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const div = document.createElement('div');
+      div.className = 'relative aspect-square';
+      div.innerHTML = `<img src="${e.target.result}" class="w-full h-full object-cover rounded-lg"/>`;
+      preview.appendChild(div);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// Initialize
+updateFieldVisibility('none');
+</script>

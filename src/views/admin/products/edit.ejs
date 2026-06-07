@@ -1,0 +1,1171 @@
+<% layout('layouts/admin') %>
+
+<div class="flex items-center justify-between mb-6">
+  <div>
+    <h2 class="text-xl font-bold text-white">Edit Product</h2>
+    <p class="text-gray-500 text-sm"><%= product.name %></p>
+  </div>
+  <div class="flex gap-2">
+    <a href="/products/<%= product.slug %>" target="_blank" class="flex items-center gap-2 px-4 py-2 border border-white/10 rounded-xl text-sm text-gray-400 hover:text-gray-200 transition-all"><i class="fa-solid fa-external-link text-xs"></i> View</a>
+    <a href="/admin/products" class="flex items-center gap-2 px-4 py-2 border border-white/10 rounded-xl text-sm text-gray-400 hover:text-gray-200 transition-all"><i class="fa-solid fa-arrow-left text-xs"></i> Back</a>
+  </div>
+</div>
+
+<form action="/admin/products/<%= product._id %>/edit" method="POST" enctype="multipart/form-data">
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="lg:col-span-2 space-y-5">
+      <div class="card p-6 space-y-4">
+        <h3 class="font-bold text-white text-sm uppercase tracking-wider">Product Information</h3>
+        <div>
+          <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Product Name *</label>
+          <input type="text" name="name" required value="<%= product.name %>" class="w-full rounded-xl px-4 py-3 text-sm"/>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Brand</label>
+          <input type="text" name="brand" value="<%= product.brand || '' %>" class="w-full rounded-xl px-4 py-3 text-sm"/>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Short Description</label>
+          <input type="text" name="shortDescription" value="<%= product.shortDescription || '' %>" class="w-full rounded-xl px-4 py-3 text-sm"/>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Full Description *</label>
+          <textarea name="description" rows="5" required class="w-full rounded-xl px-4 py-3 text-sm resize-none"><%= product.description %></textarea>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Tags</label>
+          <input type="text" name="tags" value="<%= product.tags?.join(', ') || '' %>" class="w-full rounded-xl px-4 py-3 text-sm"/>
+        </div>
+      </div>
+
+      <div class="card p-6">
+        <h3 class="font-bold text-white mb-4 text-sm uppercase tracking-wider">Pricing & Stock</h3>
+        <%
+          const editVT = product.variantType || 'none';
+          const editShowBasePrice  = editVT === 'none';
+          const editShowBaseStock  = editVT === 'none';
+          const editShowBaseImages = editVT === 'none' || editVT === 'size';
+        %>
+        <% if (!editShowBasePrice) { %>
+        <div class="mb-4 flex items-start gap-3 bg-blue-500/10 border border-blue-500/20 rounded-xl p-3">
+          <i class="fa-solid fa-circle-info text-blue-400 mt-0.5 text-sm"></i>
+          <p class="text-xs text-gray-300">
+            <strong class="text-blue-300">Variant product</strong> — base price, compare-at price, and stock are set <strong>per variant SKU</strong> in the Variant Manager below. Low stock threshold and weight still apply globally.
+          </p>
+        </div>
+        <% } %>
+        <div class="grid grid-cols-2 gap-4">
+          <% if (editShowBasePrice) { %>
+          <div>
+            <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Base Price (₹) *</label>
+            <input type="number" name="basePrice" required min="0" step="0.01" value="<%= product.basePrice %>" class="w-full rounded-xl px-4 py-3 text-sm"/>
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Compare At Price (₹)</label>
+            <input type="number" name="compareAtPrice" min="0" step="0.01" value="<%= product.compareAtPrice || '' %>" class="w-full rounded-xl px-4 py-3 text-sm"/>
+          </div>
+          <% } %>
+          <% if (editShowBaseStock) { %>
+          <div>
+            <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Stock</label>
+            <input type="number" name="stock" min="0" value="<%= product.stock || 0 %>" class="w-full rounded-xl px-4 py-3 text-sm"/>
+          </div>
+          <% } %>
+          <div>
+            <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Low Stock Alert At</label>
+            <input type="number" name="lowStockThreshold" min="1" value="<%= product.lowStockThreshold || 5 %>" class="w-full rounded-xl px-4 py-3 text-sm"/>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== VARIANT TYPE SELECTOR ==================== -->
+      <div class="card p-6">
+        <h3 class="font-bold text-white mb-4 text-sm uppercase tracking-wider">Variant Type</h3>
+        <p class="text-xs text-gray-500 mb-4">Select how this product is sold. Changing this affects which variant panels are shown below.</p>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3" id="variantTypeSelector">
+          <% ['none','color','size','color_size'].forEach(vt => { %>
+          <button type="button"
+            onclick="changeVariantType('<%= vt %>')"
+            id="vt-btn-<%= vt %>"
+            class="vt-btn px-3 py-3 rounded-xl border-2 text-sm font-semibold transition-all text-center
+              <%= product.variantType === vt ? 'border-accent-500 bg-accent-500/10 text-accent-400' : 'border-white/10 text-gray-400 hover:border-white/20' %>">
+            <% if (vt === 'none') { %><i class="fa-solid fa-box text-xs block mb-1"></i>None<% } %>
+            <% if (vt === 'color') { %><i class="fa-solid fa-palette text-xs block mb-1"></i>Color<% } %>
+            <% if (vt === 'size') { %><i class="fa-solid fa-ruler text-xs block mb-1"></i>Size<% } %>
+            <% if (vt === 'color_size') { %><i class="fa-solid fa-table-cells text-xs block mb-1"></i>Color + Size<% } %>
+          </button>
+          <% }) %>
+        </div>
+        <!-- Hidden input so the form POST also carries variantType when saving basic info -->
+        <input type="hidden" name="variantType" id="variantTypeInput" value="<%= product.variantType || 'none' %>"/>
+      </div>
+
+      <!-- ==================== VARIANT MANAGER ==================== -->
+      <div class="card p-6" id="variantManager">
+        <div class="flex items-center justify-between mb-5">
+          <h3 class="font-bold text-white text-sm uppercase tracking-wider">Variant Manager</h3>
+          <div class="flex gap-2" id="variantManagerActions">
+            <!-- Buttons rendered by JS based on variantType -->
+          </div>
+        </div>
+
+        <!-- Tabs – rendered dynamically -->
+        <div class="flex border-b border-white/10 mb-5" id="variantTabs">
+          <!-- injected by renderVariantTabs() -->
+        </div>
+
+        <!-- ── Colors Panel ── -->
+        <div id="panel-colors" class="hidden">
+          <% if (!product.colorVariants?.length) { %>
+          <p class="text-gray-500 text-sm text-center py-6">No colors added yet. Click "Add Color" above.</p>
+          <% } else { %>
+          <div class="grid grid-cols-1 gap-3" id="colorsList">
+            <% product.colorVariants.forEach(cv => { %>
+            <div class="bg-white/5 rounded-xl p-4 border border-white/10" id="color-row-<%= cv._id %>">
+              <div class="flex items-start gap-4">
+                <div class="flex items-center gap-3 flex-1">
+                  <div class="w-10 h-10 rounded-full border-2 border-white/20 flex-shrink-0"
+                    style="background:<%= cv.colorHex || '#888' %>"></div>
+                  <div>
+                    <p class="font-semibold text-gray-200 text-sm"><%= cv.color %></p>
+                    <p class="text-xs text-gray-500"><%= cv.colorHex || 'No hex' %> · <%= cv.images?.length || 0 %> image(s)</p>
+                  </div>
+                  <span class="badge <%= cv.isActive ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400' %> ml-2">
+                    <%= cv.isActive ? 'Active' : 'Off' %>
+                  </span>
+                </div>
+                <div class="flex items-center gap-2 flex-shrink-0">
+                  <button type="button" onclick="openEditColorModal('<%= cv._id %>', '<%= cv.color %>', '<%= cv.colorHex || '' %>', '<%= cv.isActive %>')"
+                    class="p-2 text-blue-400 hover:bg-blue-900/20 rounded-lg transition-colors" title="Edit">
+                    <i class="fa-solid fa-pen text-xs"></i>
+                  </button>
+                  <button type="button" onclick="deleteColorVariant('<%= cv._id %>')"
+                    class="p-2 text-red-400 hover:bg-red-900/20 rounded-lg transition-colors" title="Delete">
+                    <i class="fa-solid fa-trash-can text-xs"></i>
+                  </button>
+                </div>
+              </div>
+              <!-- Color images -->
+              <div class="mt-3">
+                <div class="flex gap-2 flex-wrap sortable-color-images mt-3" 
+                    id="color-images-<%= cv._id %>"
+                    data-color-id="<%= cv._id %>"
+                    data-reorder-url="/admin/products/<%= product._id %>/colors/reorder-images">
+                  <% cv.images?.forEach((img, idx) => { %>
+                  <div class="relative group w-16 h-16 flex-shrink-0 sortable-image" 
+                      data-public-id="<%= img.publicId %>"
+                      id="cimg-<%= cv._id %>-<%= idx %>">
+                    <% if (idx === 0) { %>
+                    <span class="first-badge absolute -top-1 -left-1 z-10 w-4 h-4 bg-accent-500 rounded-full flex items-center justify-center pointer-events-none">
+                      <i class="fa-solid fa-star text-primary text-[7px]"></i>
+                    </span>
+                    <% } %>
+                    <img data-src="<%= img.url %>" alt="" class="lazy-img w-full h-full object-cover rounded-lg bg-gray-800 select-none pointer-events-none"/>
+                    <div class="drag-handle absolute inset-0 rounded-lg cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity bg-black/30 flex items-center justify-center">
+                      <i class="fa-solid fa-up-down-left-right text-white/70 text-xs"></i>
+                    </div>
+                    <button type="button"
+                      onclick="deleteColorImage('<%= product._id %>', '<%= cv._id %>', '<%= img.publicId %>', 'cimg-<%= cv._id %>-<%= idx %>')"
+                      class="absolute top-0.5 right-0.5 w-5 h-5 bg-red-500 text-white rounded-full items-center justify-center hidden group-hover:flex text-xs z-10">
+                      <i class="fa-solid fa-xmark"></i>
+                    </button>
+                  </div>
+                  <% }) %>
+                  <label class="w-16 h-16 border-2 border-dashed border-white/20 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-accent-500/50 transition-colors flex-shrink-0 add-image-btn">
+                    <i class="fa-solid fa-plus text-gray-600 text-sm"></i>
+                    <input type="file" multiple accept="image/*" class="hidden"
+                      onchange="addColorImages(this, '<%= product._id %>', '<%= cv._id %>')"/>
+                  </label>
+                </div>
+              </div>
+            </div>
+            <% }) %>
+          </div>
+          <% } %>
+        </div>
+
+        <!-- ── Sizes Panel ── -->
+        <div id="panel-sizes" class="hidden">
+          <% if (!product.sizeVariants?.length) { %>
+          <p class="text-gray-500 text-sm text-center py-6">No sizes added yet. Click "Add Size" above.</p>
+          <% } else { %>
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs">
+              <thead>
+                <tr class="text-gray-500 uppercase tracking-wider border-b border-white/10">
+                  <th class="text-left py-2 pr-4">Size</th>
+                  <th class="text-left py-2 pr-4">Status</th>
+                  <th class="text-left py-2">Actions</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-white/5" id="sizesList">
+                <% product.sizeVariants.forEach(sv => { %>
+                <tr id="size-row-<%= sv._id %>">
+                  <td class="py-2.5 pr-4 text-gray-200 font-semibold"><%= sv.size %></td>
+                  <td class="py-2.5 pr-4">
+                    <span class="badge <%= sv.isActive ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400' %>">
+                      <%= sv.isActive ? 'Active' : 'Off' %>
+                    </span>
+                  </td>
+                  <td class="py-2.5 flex items-center gap-2">
+                    <button type="button" onclick="openEditSizeModal('<%= sv._id %>', '<%= sv.size %>', '<%= sv.isActive %>')"
+                      class="text-blue-400 hover:text-blue-300 p-1 hover:bg-blue-900/20 rounded transition-colors">
+                      <i class="fa-solid fa-pen text-xs"></i>
+                    </button>
+                    <button type="button" onclick="deleteSizeVariant('<%= sv._id %>')"
+                      class="text-red-400 hover:text-red-300 p-1 hover:bg-red-900/20 rounded transition-colors">
+                      <i class="fa-solid fa-trash-can text-xs"></i>
+                    </button>
+                  </td>
+                </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+          <% } %>
+        </div>
+
+        <!-- ── SKU Variants Panel (for color / size / color_size) ── -->
+        <div id="panel-skus" class="hidden">
+          <%
+            const vt = product.variantType || 'none';
+            const showColorCol = vt === 'color' || vt === 'color_size';
+            const showSizeCol  = vt === 'size'  || vt === 'color_size';
+          %>
+          <% if (!product.variants?.length) { %>
+          <div class="text-center py-8 text-gray-500 text-sm">
+            <i class="fa-solid fa-barcode text-2xl mb-2 block text-gray-700"></i>
+            No SKU variants yet.
+            <% if (vt === 'color_size' && (!product.colorVariants?.length || !product.sizeVariants?.length)) { %>
+              Add at least one color and one size first.
+            <% } else { %>
+              Click "Add SKU" above to create the first variant.
+            <% } %>
+          </div>
+          <% } else { %>
+          <p class="text-xs text-gray-500 mb-4">Each row is a sellable SKU. Price and stock are set per SKU.</p>
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs border-collapse" id="skuTable">
+              <thead>
+                <tr class="text-gray-500 uppercase tracking-wider border-b border-white/10">
+                  <% if (showColorCol) { %><th class="text-left py-2 px-3">Color</th><% } %>
+                  <% if (showSizeCol)  { %><th class="text-left py-2 px-3">Size</th><% } %>
+                  <th class="text-left py-2 px-3">SKU</th>
+                  <th class="text-right py-2 px-3">Price (₹)</th>
+                  <th class="text-right py-2 px-3">Stock</th>
+                  <th class="text-center py-2 px-3">Status</th>
+                  <th class="text-center py-2 px-3">Actions</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-white/5">
+                <% product.variants.forEach(v => {
+                  const colorVariant = v.colorId ? product.colorVariants.find(c => c._id.toString() === v.colorId.toString()) : null;
+                  const sizeVariant  = v.sizeId  ? product.sizeVariants.find(s => s._id.toString()  === v.sizeId.toString())  : null;
+                %>
+                <tr id="sku-row-<%= v._id %>">
+                  <% if (showColorCol) { %>
+                  <td class="py-2.5 px-3">
+                    <% if (colorVariant) { %>
+                    <div class="flex items-center gap-2">
+                      <span class="w-4 h-4 rounded-full border border-white/20 flex-shrink-0" style="background:<%= colorVariant.colorHex || '#888' %>"></span>
+                      <span class="text-gray-200"><%= colorVariant.color %></span>
+                    </div>
+                    <% } else { %><span class="text-gray-600">—</span><% } %>
+                  </td>
+                  <% } %>
+                  <% if (showSizeCol) { %>
+                  <td class="py-2.5 px-3 text-gray-200 font-semibold"><%= sizeVariant?.size || '—' %></td>
+                  <% } %>
+                  <td class="py-2.5 px-3 text-gray-400 font-mono"><%= v.sku || '—' %></td>
+                  <td class="py-2.5 px-3 text-right text-white font-bold">₹<%= v.price?.toLocaleString('en-IN') %></td>
+                  <td class="py-2.5 px-3 text-right font-semibold <%= v.stock <= 0 ? 'text-red-400' : v.stock <= 5 ? 'text-yellow-400' : 'text-green-400' %>">
+                    <%= v.stock %>
+                  </td>
+                  <td class="py-2.5 px-3 text-center">
+                    <span class="badge <%= v.isActive ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400' %>">
+                      <%= v.isActive ? 'Active' : 'Off' %>
+                    </span>
+                  </td>
+                  <td class="py-2.5 px-3">
+                    <div class="flex items-center justify-center gap-2">
+                      <button type="button"
+                        onclick="openEditSkuModal('<%= v._id %>', '<%= v.sku || '' %>', '<%= v.price %>', '<%= v.compareAtPrice || '' %>', '<%= v.stock %>', '<%= v.isActive %>')"
+                        class="p-1 text-blue-400 hover:bg-blue-900/20 rounded transition-colors">
+                        <i class="fa-solid fa-pen text-xs"></i>
+                      </button>
+                      <button type="button" onclick="deleteSkuVariant('<%= v._id %>')"
+                        class="p-1 text-red-400 hover:bg-red-900/20 rounded transition-colors">
+                        <i class="fa-solid fa-trash-can text-xs"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+          <% } %>
+        </div>
+      </div>
+
+      <!-- Product Images — shown for 'none' and 'size' variant types only -->
+      <% if (editShowBaseImages) { %>
+      <div class="card p-6">
+        <h3 class="font-bold text-white mb-1 text-sm uppercase tracking-wider">Product Images</h3>
+        <% if (editVT === 'size') { %>
+        <p class="text-xs text-gray-500 mb-3">These images are shared across all size variants.</p>
+        <% } %>
+        <div class="grid grid-cols-4 gap-3 mb-4" id="editImagePreview" 
+          data-reorder-url="/admin/products/<%= product._id %>/reorder-images"
+          data-context="base">
+          <% product.images?.forEach((img, index) => { %>
+          <div class="relative group aspect-square sortable-image" 
+              data-public-id="<%= img.publicId %>"
+              id="img-wrapper-<%= index %>">
+            <!-- First image crown badge -->
+            <% if (index === 0) { %>
+            <span class="first-badge absolute top-1 left-1 z-10 bg-accent-500 text-primary text-[9px] font-bold px-1.5 py-0.5 rounded pointer-events-none">
+              <i class="fa-solid fa-star text-[8px]"></i> Main
+            </span>
+            <% } %>
+            <img src="<%= img.url %>" class="w-full h-full object-cover rounded-xl select-none pointer-events-none"/>
+            <!-- Drag handle -->
+            <div class="drag-handle absolute inset-0 rounded-xl cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-start p-1.5 bg-gradient-to-t from-black/40 to-transparent">
+              <i class="fa-solid fa-grip-dots-vertical text-white/70 text-xs"></i>
+            </div>
+            <div class="image-loader hidden absolute inset-0 transparent-black rounded-xl flex items-center justify-center z-10">
+              <i class="fa-solid fa-spinner fa-spin text-accent-500 text-xl"></i>
+            </div>
+            <button type="button" onclick="deleteImage('<%= product._id %>', '<%= img.publicId %>', 'img-wrapper-<%= index %>')"
+              class="absolute top-1.5 right-1.5 w-7 h-7 bg-red-500 text-white rounded-full hidden group-hover:flex items-center justify-center shadow-lg z-20">
+              <i class="fa-solid fa-xmark text-xs"></i>
+            </button>
+          </div>
+          <% }) %>
+          <label class="aspect-square border-2 border-dashed border-white/10 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-accent-500/50 transition-colors add-image-btn">
+            <i class="fa-solid fa-plus text-gray-600 text-xl mb-1"></i>
+            <span class="text-xs text-gray-600">Add</span>
+            <input type="file" id="editImagesInput" name="images" multiple accept="image/*" class="hidden" onchange="previewEditImages(this)"/>
+          </label>
+        </div>
+        <p class="text-xs text-gray-600 mt-1"><i class="fa-solid fa-grip-dots-vertical mr-1"></i>Drag images to reorder. First image is used as the product card thumbnail.</p>
+      </div>
+      <% } else { %>
+      <div class="card p-5">
+        <div class="flex items-start gap-3 bg-blue-500/10 border border-blue-500/20 rounded-xl p-3">
+          <i class="fa-solid fa-palette text-blue-400 mt-0.5 text-sm"></i>
+          <div>
+            <p class="text-sm font-semibold text-gray-200 mb-1">Images managed per color variant</p>
+            <p class="text-xs text-gray-500">Since this product uses color variants, product images are uploaded for each color separately in the Variant Manager below.</p>
+          </div>
+        </div>
+      </div>
+      <% } %>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="space-y-5">
+      <div class="card p-5 space-y-4">
+        <h3 class="font-bold text-white text-sm uppercase tracking-wider">Organization</h3>
+        <div>
+          <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Category *</label>
+          <select name="category" required class="w-full rounded-xl px-4 py-3 text-sm">
+            <% categories.filter(c=>!c.parent).forEach(cat => { %>
+            <option value="<%= cat._id %>" <%= product.category?.toString() === cat._id.toString() ? 'selected' : '' %>><%= cat.name %></option>
+            <% }) %>
+          </select>
+        </div>
+        <div class="space-y-3">
+          <% [
+            ['isFeatured', 'Featured Product', product?.isFeatured || false],
+            ['isNewArrival', 'New Arrival', product?.isNewArrival || false],
+            ['isBestSeller', 'Best Seller', product?.isBestSeller || false],
+          ].forEach(([name, label, checked]) => { %>
+          <label class="flex items-center gap-3 cursor-pointer select-none">
+            <div class="relative w-11 h-6 bg-gray-700 rounded-full" style="box-shadow:inset 0 2px 4px rgba(0,0,0,0.2);">
+              <input type="checkbox" name="<%= name %>" value="true" <%= checked ? 'checked' : '' %> class="sr-only peer"/>
+              <div class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-md transition-all duration-300 peer-checked:translate-x-5"></div>
+            </div>
+            <span class="text-sm text-gray-300"><%= label %></span>
+          </label>
+          <% }) %>
+          <label class="flex items-center gap-3 cursor-pointer select-none">
+            <div class="relative w-11 h-6 bg-gray-700 rounded-full">
+              <input type="checkbox" name="isActive" value="true" <%= product?.isActive ? 'checked' : '' %> class="sr-only peer"/>
+              <div class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-md transition-all duration-300 peer-checked:translate-x-5"></div>
+            </div>
+            <span class="text-sm text-gray-300">Active / Visible</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="card p-5 text-xs text-gray-500 space-y-2">
+        <h3 class="font-bold text-white text-sm uppercase tracking-wider mb-3">Stats</h3>
+        <p>Views: <span class="text-gray-300 font-semibold"><%= product.viewCount || 0 %></span></p>
+        <p>Sales: <span class="text-gray-300 font-semibold"><%= product.salesCount || 0 %></span></p>
+        <p>Wishlist: <span class="text-gray-300 font-semibold"><%= product.wishlistCount || 0 %></span></p>
+        <p>Reviews: <span class="text-gray-300 font-semibold"><%= product.reviewCount || 0 %></span></p>
+        <p>Rating: <span class="text-gray-300 font-semibold"><%= (product.avgRating||0).toFixed(1) %>★</span></p>
+        <p class="pt-2">Created: <span class="text-gray-300"><%= new Date(product.createdAt).toLocaleDateString() %></span></p>
+      </div>
+
+      <div class="flex gap-3">
+        <button type="submit" class="flex-1 bg-gradient-to-r from-accent-500 to-accent-600 text-primary py-3 rounded-xl font-bold text-sm shadow-lg hover:from-accent-400 transition-all">
+          <i class="fa-solid fa-floppy-disk mr-2"></i>Save Changes
+        </button>
+      </div>
+    </div>
+  </div>
+</form>
+
+<!-- ==================== MODALS ==================== -->
+
+<!-- Add Color Modal -->
+<div id="addColorModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+  <div class="absolute inset-0 transparent-black" onclick="closeModal('addColorModal')"></div>
+  <div class="relative bg-[#1a1a2e] border border-white/10 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+    <h3 class="font-bold text-white mb-4">Add Color</h3>
+    <div class="space-y-3">
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs text-gray-400 block mb-1">Color Name *</label>
+          <input type="text" id="acColor" placeholder="Red, Blue, White..." class="w-full rounded-lg px-3 py-2 text-sm"/>
+        </div>
+        <div>
+          <label class="text-xs text-gray-400 block mb-1">Hex Code</label>
+          <input type="color" id="acColorHex" value="#ff0000" class="w-full rounded-lg px-3 py-2 text-sm h-10 cursor-pointer"/>
+        </div>
+      </div>
+      <div>
+        <label class="text-xs text-gray-400 block mb-1">Color Images</label>
+        <input type="file" id="acImages" multiple accept="image/*" class="w-full text-xs text-gray-400 file:mr-2 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:bg-accent-500 file:text-primary"/>
+        <div id="acImagePreview" class="flex gap-2 mt-2 flex-wrap"></div>
+      </div>
+      <div class="flex gap-3 pt-2">
+        <button type="button" onclick="addColorVariant()" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-2.5 rounded-xl font-bold text-sm transition-colors">Add Color</button>
+        <button type="button" onclick="closeModal('addColorModal')" class="px-4 py-2.5 border border-white/10 rounded-xl text-gray-400 text-sm">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Color Modal -->
+<div id="editColorModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+  <div class="absolute inset-0 transparent-black" onclick="closeModal('editColorModal')"></div>
+  <div class="relative bg-[#1a1a2e] border border-white/10 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+    <h3 class="font-bold text-white mb-4">Edit Color</h3>
+    <input type="hidden" id="ecColorId"/>
+    <div class="space-y-3">
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs text-gray-400 block mb-1">Color Name *</label>
+          <input type="text" id="ecColor" class="w-full rounded-lg px-3 py-2 text-sm"/>
+        </div>
+        <div>
+          <label class="text-xs text-gray-400 block mb-1">Hex Code</label>
+          <input type="color" id="ecColorHex" class="w-full rounded-lg px-3 py-2 text-sm h-10 cursor-pointer"/>
+        </div>
+      </div>
+      <label class="flex items-center gap-2 cursor-pointer">
+        <input type="checkbox" id="ecIsActive" class="accent-yellow-500"/>
+        <span class="text-sm text-gray-300">Active</span>
+      </label>
+      <div class="flex gap-3 pt-2">
+        <button type="button" onclick="updateColorVariant()" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-2.5 rounded-xl font-bold text-sm transition-colors">Save</button>
+        <button type="button" onclick="closeModal('editColorModal')" class="px-4 py-2.5 border border-white/10 rounded-xl text-gray-400 text-sm">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Size Modal -->
+<div id="addSizeModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+  <div class="absolute inset-0 transparent-black" onclick="closeModal('addSizeModal')"></div>
+  <div class="relative bg-[#1a1a2e] border border-white/10 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+    <h3 class="font-bold text-white mb-4">Add Size</h3>
+    <div class="space-y-3">
+      <div>
+        <label class="text-xs text-gray-400 block mb-1">Size Label *</label>
+        <input type="text" id="asSize" placeholder="S, M, L, XL, 40, 41..." class="w-full rounded-lg px-3 py-2 text-sm"/>
+      </div>
+      <div class="flex gap-3 pt-2">
+        <button type="button" onclick="addSizeVariant()" class="flex-1 bg-green-600 hover:bg-green-500 text-white py-2.5 rounded-xl font-bold text-sm transition-colors">Add Size</button>
+        <button type="button" onclick="closeModal('addSizeModal')" class="px-4 py-2.5 border border-white/10 rounded-xl text-gray-400 text-sm">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Size Modal -->
+<div id="editSizeModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+  <div class="absolute inset-0 transparent-black" onclick="closeModal('editSizeModal')"></div>
+  <div class="relative bg-[#1a1a2e] border border-white/10 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+    <h3 class="font-bold text-white mb-4">Edit Size</h3>
+    <input type="hidden" id="esSizeId"/>
+    <div class="space-y-3">
+      <div>
+        <label class="text-xs text-gray-400 block mb-1">Size Label *</label>
+        <input type="text" id="esSize" class="w-full rounded-lg px-3 py-2 text-sm"/>
+      </div>
+      <label class="flex items-center gap-2 cursor-pointer">
+        <input type="checkbox" id="esIsActive" class="accent-yellow-500"/>
+        <span class="text-sm text-gray-300">Active</span>
+      </label>
+      <div class="flex gap-3 pt-2">
+        <button type="button" onclick="updateSizeVariant()" class="flex-1 bg-green-600 hover:bg-green-500 text-white py-2.5 rounded-xl font-bold text-sm transition-colors">Save</button>
+        <button type="button" onclick="closeModal('editSizeModal')" class="px-4 py-2.5 border border-white/10 rounded-xl text-gray-400 text-sm">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add SKU Modal -->
+<div id="addSkuModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+  <div class="absolute inset-0 transparent-black" onclick="closeModal('addSkuModal')"></div>
+  <div class="relative bg-[#1a1a2e] border border-white/10 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+    <h3 class="font-bold text-white mb-1">Add SKU Variant</h3>
+    <p class="text-xs text-gray-500 mb-4" id="addSkuSubtitle"></p>
+    <div class="space-y-3">
+      <div id="addSkuColorField" class="hidden">
+        <label class="text-xs text-gray-400 block mb-1">Color *</label>
+        <select id="skuColorId" class="w-full rounded-lg px-3 py-2 text-sm">
+          <option value="">Select color</option>
+          <% product.colorVariants?.filter(c=>c.isActive).forEach(cv => { %>
+          <option value="<%= cv._id %>"><%= cv.color %></option>
+          <% }) %>
+        </select>
+      </div>
+      <div id="addSkuSizeField" class="hidden">
+        <label class="text-xs text-gray-400 block mb-1">Size *</label>
+        <select id="skuSizeId" class="w-full rounded-lg px-3 py-2 text-sm">
+          <option value="">Select size</option>
+          <% product.sizeVariants?.filter(s=>s.isActive).forEach(sv => { %>
+          <option value="<%= sv._id %>"><%= sv.size %></option>
+          <% }) %>
+        </select>
+      </div>
+      <div>
+        <label class="text-xs text-gray-400 block mb-1">SKU Code</label>
+        <input type="text" id="skuCode" placeholder="e.g. PROD-RED-M" class="w-full rounded-lg px-3 py-2 text-sm"/>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs text-gray-400 block mb-1">Price (₹) *</label>
+          <input type="number" id="skuPrice" min="0" step="0.01" placeholder="999" class="w-full rounded-lg px-3 py-2 text-sm"/>
+        </div>
+        <div>
+          <label class="text-xs text-gray-400 block mb-1">Compare At Price</label>
+          <input type="number" id="skuComparePrice" min="0" step="0.01" placeholder="1499" class="w-full rounded-lg px-3 py-2 text-sm"/>
+        </div>
+      </div>
+      <div>
+        <label class="text-xs text-gray-400 block mb-1">Stock *</label>
+        <input type="number" id="skuStock" min="0" value="0" class="w-full rounded-lg px-3 py-2 text-sm"/>
+      </div>
+      <div class="flex gap-3 pt-2">
+        <button type="button" onclick="saveSkuVariant()" class="flex-1 bg-accent-500 text-primary py-2.5 rounded-xl font-bold text-sm">Save SKU</button>
+        <button type="button" onclick="closeModal('addSkuModal')" class="px-4 py-2.5 border border-white/10 rounded-xl text-gray-400 text-sm">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit SKU Modal -->
+<div id="editSkuModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+  <div class="absolute inset-0 transparent-black" onclick="closeModal('editSkuModal')"></div>
+  <div class="relative bg-[#1a1a2e] border border-white/10 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+    <h3 class="font-bold text-white mb-4">Edit SKU Variant</h3>
+    <input type="hidden" id="editSkuId"/>
+    <div class="space-y-3">
+      <div>
+        <label class="text-xs text-gray-400 block mb-1">SKU Code</label>
+        <input type="text" id="editSkuCode" class="w-full rounded-lg px-3 py-2 text-sm"/>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs text-gray-400 block mb-1">Price (₹) *</label>
+          <input type="number" id="editSkuPrice" min="0" step="0.01" class="w-full rounded-lg px-3 py-2 text-sm"/>
+        </div>
+        <div>
+          <label class="text-xs text-gray-400 block mb-1">Compare At Price</label>
+          <input type="number" id="editSkuComparePrice" min="0" step="0.01" class="w-full rounded-lg px-3 py-2 text-sm"/>
+        </div>
+      </div>
+      <div>
+        <label class="text-xs text-gray-400 block mb-1">Stock</label>
+        <input type="number" id="editSkuStock" min="0" class="w-full rounded-lg px-3 py-2 text-sm"/>
+      </div>
+      <label class="flex items-center gap-2 cursor-pointer">
+        <input type="checkbox" id="editSkuIsActive" class="accent-yellow-500"/>
+        <span class="text-sm text-gray-300">Active</span>
+      </label>
+      <div class="flex gap-3 pt-2">
+        <button type="button" onclick="updateSkuVariant()" class="flex-1 bg-accent-500 text-primary py-2.5 rounded-xl font-bold text-sm">Save Changes</button>
+        <button type="button" onclick="closeModal('editSkuModal')" class="px-4 py-2.5 border border-white/10 rounded-xl text-gray-400 text-sm">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const PRODUCT_ID = '<%= product._id %>';
+let currentVariantType = '<%= product.variantType || "none" %>';
+
+// ── Utilities ────────────────────────────────────────────────────────
+function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+function openModal(id)  { document.getElementById(id).classList.remove('hidden'); }
+
+async function apiCall(method, url, body) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(url, opts);
+  return r.json();
+}
+
+async function apiFormCall(method, url, formData) {
+  const r = await fetch(url, { method, body: formData });
+  return r.json();
+}
+
+// ── Variant Type UI ──────────────────────────────────────────────────
+function renderVariantTabs() {
+  const vt  = currentVariantType;
+  const tabs = document.getElementById('variantTabs');
+  const actions = document.getElementById('variantManagerActions');
+
+  // Build tab list
+  let tabHtml = '';
+  if (vt === 'color' || vt === 'color_size') {
+    tabHtml += `<button type="button" onclick="switchVariantTab('colors')" id="tab-colors"
+      class="variant-tab px-4 py-2 text-sm font-semibold border-b-2 border-accent-500 text-accent-500 transition-all">
+      Colors (${document.querySelectorAll('[id^="color-row-"]').length || 0})
+    </button>`;
+  }
+  if (vt === 'size' || vt === 'color_size') {
+    tabHtml += `<button type="button" onclick="switchVariantTab('sizes')" id="tab-sizes"
+      class="variant-tab px-4 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-300 transition-all">
+      Sizes
+    </button>`;
+  }
+  if (vt !== 'none') {
+    tabHtml += `<button type="button" onclick="switchVariantTab('skus')" id="tab-skus"
+      class="variant-tab px-4 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-300 transition-all">
+      SKU Variants
+    </button>`;
+  }
+  tabs.innerHTML = tabHtml;
+
+  // Build action buttons
+  let actionHtml = '';
+  if (vt === 'color' || vt === 'color_size') {
+    actionHtml += `<button type="button" onclick="openAddColorModal()" class="text-xs bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-colors">
+      <i class="fa-solid fa-palette text-xs"></i> Add Color
+    </button>`;
+  }
+  if (vt === 'size' || vt === 'color_size') {
+    actionHtml += `<button type="button" onclick="openAddSizeModal()" class="text-xs bg-green-600 hover:bg-green-500 text-white px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-colors">
+      <i class="fa-solid fa-ruler text-xs"></i> Add Size
+    </button>`;
+  }
+  if (vt !== 'none') {
+    actionHtml += `<button type="button" onclick="openAddSkuModal()" class="text-xs bg-accent-500 hover:bg-accent-400 text-primary px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-colors">
+      <i class="fa-solid fa-barcode text-xs"></i> Add SKU
+    </button>`;
+  }
+  actions.innerHTML = actionHtml;
+
+  // Show first available tab
+  if (vt === 'none') {
+    document.getElementById('panel-colors').classList.add('hidden');
+    document.getElementById('panel-sizes').classList.add('hidden');
+    document.getElementById('panel-skus').classList.add('hidden');
+  } else if (vt === 'color') {
+    switchVariantTab('colors');
+  } else if (vt === 'size') {
+    switchVariantTab('sizes');
+  } else {
+    switchVariantTab('colors');
+  }
+}
+
+function switchVariantTab(tab) {
+  ['colors','sizes','skus'].forEach(t => {
+    const panel = document.getElementById(`panel-${t}`);
+    const btn   = document.getElementById(`tab-${t}`);
+    if (panel) panel.classList.toggle('hidden', t !== tab);
+    if (btn) {
+      btn.classList.toggle('border-accent-500', t === tab);
+      btn.classList.toggle('text-accent-500', t === tab);
+      btn.classList.toggle('border-transparent', t !== tab);
+      btn.classList.toggle('text-gray-500', t !== tab);
+    }
+  });
+  if (tab === 'colors') initLazyImages();
+}
+
+async function changeVariantType(vt) {
+  if (vt === currentVariantType) return;
+
+  const confirmed = confirm(`Change variant type to "${vt}"? Existing SKU variants that don't match the new type will still be stored but may become invalid. Continue?`);
+  if (!confirmed) return;
+
+  const d = await apiCall('PUT', `/admin/products/${PRODUCT_ID}/variant-type`, { variantType: vt });
+  if (d.success) {
+    currentVariantType = vt;
+    document.getElementById('variantTypeInput').value = vt;
+
+    // Update button highlights
+    document.querySelectorAll('.vt-btn').forEach(btn => {
+      const btnVt = btn.id.replace('vt-btn-', '');
+      btn.classList.toggle('border-accent-500',    btnVt === vt);
+      btn.classList.toggle('bg-accent-500/10',     btnVt === vt);
+      btn.classList.toggle('text-accent-400',      btnVt === vt);
+      btn.classList.toggle('border-white/10',      btnVt !== vt);
+      btn.classList.toggle('text-gray-400',        btnVt !== vt);
+    });
+
+    // Update flat stock field opacity
+    document.getElementById('flatStockField').classList.toggle('opacity-50', vt !== 'none');
+    document.getElementById('flatStockInput').disabled = vt !== 'none';
+
+    renderVariantTabs();
+    showToast(`Variant type set to "${vt}"`, 'success');
+  } else {
+    showToast(d.message || 'Error updating variant type', 'error');
+  }
+}
+
+// ── Lazy images ───────────────────────────────────────────────────────
+function initLazyImages() {
+  document.querySelectorAll('.lazy-img[data-src]').forEach(img => {
+    if (img.dataset.src && !img.src.startsWith('http')) {
+      img.src = img.dataset.src;
+      img.removeAttribute('data-src');
+    }
+  });
+}
+
+// ── Color Variant ─────────────────────────────────────────────────────
+function openAddColorModal() { openModal('addColorModal'); }
+
+function openEditColorModal(colorId, color, hex, isActive) {
+  document.getElementById('ecColorId').value   = colorId;
+  document.getElementById('ecColor').value     = color;
+  document.getElementById('ecColorHex').value  = hex || '#000000';
+  document.getElementById('ecIsActive').checked = isActive === 'true';
+  openModal('editColorModal');
+}
+
+document.getElementById('acImages')?.addEventListener('change', function () {
+  const preview = document.getElementById('acImagePreview');
+  preview.innerHTML = '';
+  Array.from(this.files).forEach(file => {
+    const r = new FileReader();
+    r.onload = e => {
+      const img = document.createElement('img');
+      img.src = e.target.result;
+      img.className = 'w-12 h-12 object-cover rounded-lg';
+      preview.appendChild(img);
+    };
+    r.readAsDataURL(file);
+  });
+});
+
+async function addColorVariant() {
+  const color = document.getElementById('acColor').value.trim();
+  if (!color) { showToast('Color name is required', 'error'); return; }
+
+  const fd = new FormData();
+  fd.append('color', color);
+  fd.append('colorHex', document.getElementById('acColorHex').value);
+  Array.from(document.getElementById('acImages').files).forEach(f => fd.append('images', f));
+
+  const d = await apiFormCall('POST', `/admin/products/${PRODUCT_ID}/colors`, fd);
+  if (d.success) { showToast('Color added!', 'success'); setTimeout(() => location.reload(), 800); }
+  else showToast(d.message || 'Error', 'error');
+}
+
+async function updateColorVariant() {
+  const colorId = document.getElementById('ecColorId').value;
+  const d = await apiCall('PUT', `/admin/products/${PRODUCT_ID}/colors/${colorId}`, {
+    color: document.getElementById('ecColor').value,
+    colorHex: document.getElementById('ecColorHex').value,
+    isActive: document.getElementById('ecIsActive').checked ? 'true' : 'false',
+  });
+  if (d.success) { showToast('Color updated!', 'success'); closeModal('editColorModal'); setTimeout(() => location.reload(), 800); }
+  else showToast(d.message || 'Error', 'error');
+}
+
+async function deleteColorVariant(colorId) {
+  if (!confirm('Delete this color and all its variant SKUs?')) return;
+  const d = await apiCall('DELETE', `/admin/products/${PRODUCT_ID}/colors/${colorId}`);
+  if (d.success) { showToast('Color deleted', 'info'); document.getElementById(`color-row-${colorId}`)?.remove(); }
+  else showToast(d.message || 'Error', 'error');
+}
+
+async function addColorImages(input, productId, colorId) {
+  const fd = new FormData();
+  Array.from(input.files).forEach(f => fd.append('images', f));
+  const d = await apiFormCall('PUT', `/admin/products/${productId}/colors/${colorId}`, fd);
+  if (d.success) { showToast('Images added!', 'success'); setTimeout(() => location.reload(), 800); }
+  else showToast(d.message || 'Error', 'error');
+}
+
+async function deleteColorImage(productId, colorId, publicId, wrapperId) {
+  if (!confirm('Remove this image?')) return;
+  const d = await apiCall('POST', `/admin/products/${productId}/colors/delete-image`, { colorId, publicId });
+  if (d.success) { showToast('Image removed', 'info'); document.getElementById(wrapperId)?.remove(); }
+  else showToast(d.message || 'Error', 'error');
+}
+
+// ── Size Variant ──────────────────────────────────────────────────────
+function openAddSizeModal() { openModal('addSizeModal'); }
+
+function openEditSizeModal(sizeId, size, isActive) {
+  document.getElementById('esSizeId').value    = sizeId;
+  document.getElementById('esSize').value      = size;
+  document.getElementById('esIsActive').checked = isActive === 'true';
+  openModal('editSizeModal');
+}
+
+async function addSizeVariant() {
+  const size = document.getElementById('asSize').value.trim();
+  if (!size) { showToast('Size is required', 'error'); return; }
+  const d = await apiCall('POST', `/admin/products/${PRODUCT_ID}/sizes`, { size });
+  if (d.success) { showToast('Size added!', 'success'); setTimeout(() => location.reload(), 800); }
+  else showToast(d.message || 'Error', 'error');
+}
+
+async function updateSizeVariant() {
+  const sizeId = document.getElementById('esSizeId').value;
+  const d = await apiCall('PUT', `/admin/products/${PRODUCT_ID}/sizes/${sizeId}`, {
+    size: document.getElementById('esSize').value,
+    isActive: document.getElementById('esIsActive').checked ? 'true' : 'false',
+  });
+  if (d.success) { showToast('Size updated!', 'success'); closeModal('editSizeModal'); setTimeout(() => location.reload(), 800); }
+  else showToast(d.message || 'Error', 'error');
+}
+
+async function deleteSizeVariant(sizeId) {
+  if (!confirm('Delete this size and all related SKU variants?')) return;
+  const d = await apiCall('DELETE', `/admin/products/${PRODUCT_ID}/sizes/${sizeId}`);
+  if (d.success) { showToast('Size deleted', 'info'); document.getElementById(`size-row-${sizeId}`)?.remove(); }
+  else showToast(d.message || 'Error', 'error');
+}
+
+// ── SKU Variant ───────────────────────────────────────────────────────
+function openAddSkuModal() {
+  const vt = currentVariantType;
+  document.getElementById('addSkuColorField').classList.toggle('hidden', vt !== 'color' && vt !== 'color_size');
+  document.getElementById('addSkuSizeField').classList.toggle('hidden',  vt !== 'size'  && vt !== 'color_size');
+
+  const subtitles = { color: 'Color variant', size: 'Size variant', color_size: 'Color + Size combination' };
+  document.getElementById('addSkuSubtitle').textContent = subtitles[vt] || '';
+
+  document.getElementById('skuCode').value         = '';
+  document.getElementById('skuPrice').value        = '';
+  document.getElementById('skuComparePrice').value = '';
+  document.getElementById('skuStock').value        = '0';
+  openModal('addSkuModal');
+}
+
+async function saveSkuVariant() {
+  const price = document.getElementById('skuPrice').value;
+  if (!price) { showToast('Price is required', 'error'); return; }
+
+  const vt = currentVariantType;
+  const colorId = document.getElementById('skuColorId')?.value || null;
+  const sizeId  = document.getElementById('skuSizeId')?.value  || null;
+
+  if ((vt === 'color' || vt === 'color_size') && !colorId) { showToast('Select a color', 'error'); return; }
+  if ((vt === 'size'  || vt === 'color_size') && !sizeId)  { showToast('Select a size', 'error'); return; }
+
+  const body = {
+    colorId: colorId || undefined,
+    sizeId:  sizeId  || undefined,
+    sku:     document.getElementById('skuCode').value,
+    price,
+    compareAtPrice: document.getElementById('skuComparePrice').value || undefined,
+    stock: document.getElementById('skuStock').value || 0,
+  };
+
+  const d = await apiCall('POST', `/admin/products/${PRODUCT_ID}/variants`, body);
+  if (d.success) { showToast('SKU variant saved!', 'success'); closeModal('addSkuModal'); setTimeout(() => location.reload(), 800); }
+  else showToast(d.message || 'Error', 'error');
+}
+
+function openEditSkuModal(variantId, sku, price, comparePrice, stock, isActive) {
+  document.getElementById('editSkuId').value              = variantId;
+  document.getElementById('editSkuCode').value            = sku;
+  document.getElementById('editSkuPrice').value           = price;
+  document.getElementById('editSkuComparePrice').value    = comparePrice || '';
+  document.getElementById('editSkuStock').value           = stock;
+  document.getElementById('editSkuIsActive').checked      = isActive === 'true';
+  openModal('editSkuModal');
+}
+
+async function updateSkuVariant() {
+  const variantId = document.getElementById('editSkuId').value;
+  const d = await apiCall('PUT', `/admin/products/${PRODUCT_ID}/variants/${variantId}`, {
+    sku:           document.getElementById('editSkuCode').value,
+    price:         document.getElementById('editSkuPrice').value,
+    compareAtPrice: document.getElementById('editSkuComparePrice').value || undefined,
+    stock:         document.getElementById('editSkuStock').value,
+    isActive:      document.getElementById('editSkuIsActive').checked ? 'true' : 'false',
+  });
+  if (d.success) { showToast('SKU updated!', 'success'); closeModal('editSkuModal'); setTimeout(() => location.reload(), 800); }
+  else showToast(d.message || 'Error', 'error');
+}
+
+async function deleteSkuVariant(variantId) {
+  if (!confirm('Remove this SKU variant?')) return;
+  const d = await apiCall('DELETE', `/admin/products/${PRODUCT_ID}/variants/${variantId}`);
+  if (d.success) { showToast('SKU removed', 'info'); document.getElementById(`sku-row-${variantId}`)?.remove(); }
+  else showToast(d.message || 'Error', 'error');
+}
+
+// ── Product Images ────────────────────────────────────────────────────
+function previewEditImages(input) {
+  const container = document.getElementById('editImagePreview');
+  document.querySelectorAll('.staged-preview').forEach(el => el.remove());
+  Array.from(input.files).forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const div = document.createElement('div');
+      div.className = 'relative aspect-square staged-preview opacity-70';
+      div.innerHTML = `<img src="${e.target.result}" class="w-full h-full object-cover rounded-xl border border-accent-500/30"/><span class="absolute bottom-1 left-1 bg-accent-500 text-primary text-[10px] px-1.5 py-0.5 font-bold rounded">New</span>`;
+      container.insertBefore(div, container.lastElementChild);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function deleteImage(pId, publicId, wrapperId) {
+  if (!confirm('Remove this image?')) return;
+  const container = document.getElementById(wrapperId);
+  const loader    = container?.querySelector('.image-loader');
+  const deleteBtn = container?.querySelector('button');
+  if (loader) loader.classList.remove('hidden');
+  if (deleteBtn) deleteBtn.style.display = 'none';
+  try {
+    const r = await fetch('/admin/products/delete-image', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ productId: pId, publicId }),
+    });
+    const d = await r.json();
+    if (d.success) { showToast('Image deleted', 'info'); setTimeout(() => location.reload(), 800); }
+    else {
+      showToast(d.message || 'Error', 'error');
+      if (loader) loader.classList.add('hidden');
+      if (deleteBtn) deleteBtn.style.display = '';
+    }
+  } catch {
+    showToast('Network error', 'error');
+    if (loader) loader.classList.add('hidden');
+    if (deleteBtn) deleteBtn.style.display = '';
+  }
+}
+
+// ── Image Drag & Drop Reorder ─────────────────────────────────────────
+const _persistTimers = new WeakMap();
+
+function initSortableGrid(container) {
+  let dragging = null;
+  let placeholder = null;
+
+  const getItems = () => [...container.querySelectorAll('.sortable-image')];
+
+  const createPlaceholder = (ref) => {
+    const ph = document.createElement('div');
+    ph.className = 'sortable-placeholder rounded-xl bg-white/5 border-2 border-dashed border-accent-500/40';
+    ph.style.width      = ref.offsetWidth  + 'px';
+    ph.style.height     = ref.offsetHeight + 'px';
+    ph.style.flexShrink = '0';
+    return ph;
+  };
+
+  const createGhost = (item, rect) => {
+    const img = item.querySelector('img');
+    const ghost = document.createElement('div');
+    ghost.id = 'drag-ghost';
+    ghost.style.cssText = `
+      position:fixed; z-index:9999; pointer-events:none;
+      width:${rect.width}px; height:${rect.height}px;
+      left:${rect.left}px; top:${rect.top}px;
+      border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,0.5);
+      opacity:0.95; overflow:hidden;
+      background: #1a1a2e center/cover no-repeat;
+      transition: box-shadow 0.1s;
+    `;
+    if (img) {
+      const src = img.src || img.dataset.src;
+      if (src) ghost.style.backgroundImage = `url('${src}')`;
+    }
+    return ghost;
+  };
+
+  getItems().forEach(item => {
+    item.addEventListener('mousedown',  e => startDrag(e, item));
+    item.addEventListener('touchstart', e => startDrag(e, item), { passive: false });
+  });
+
+  function startDrag(e, item) {
+    if (e.target.closest('button')) return;
+    e.preventDefault();
+
+    // Clean up any leftover ghost
+    document.getElementById('drag-ghost')?.remove();
+
+    // Capture rect BEFORE any DOM changes
+    const rect = item.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+    // Anchor ghost to element's top-left corner, not cursor
+    // This makes ghost appear exactly on top of the item
+    const offsetX = clientX - rect.left;
+    const offsetY = clientY - rect.top;
+
+    dragging = item;
+    placeholder = createPlaceholder(item);
+
+    // Insert placeholder exactly where item is, THEN hide item in place
+    item.parentNode.insertBefore(placeholder, item);
+    item.style.display = 'none';
+
+    const ghost = createGhost(item, rect);
+    document.body.appendChild(ghost);
+
+    function onMove(e2) {
+      const cx = e2.touches ? e2.touches[0].clientX : e2.clientX;
+      const cy = e2.touches ? e2.touches[0].clientY : e2.clientY;
+
+      ghost.style.left = (cx - offsetX) + 'px';
+      ghost.style.top  = (cy - offsetY) + 'px';
+
+      // Find nearest sibling (excluding hidden dragging item and placeholder)
+      const siblings = getItems().filter(i => i !== dragging);
+      let nearest = null, nearestDist = Infinity;
+      siblings.forEach(sib => {
+        const r = sib.getBoundingClientRect();
+        const dist = Math.hypot(cx - (r.left + r.width / 2), cy - (r.top + r.height / 2));
+        if (dist < nearestDist) { nearestDist = dist; nearest = sib; }
+      });
+
+      if (nearest) {
+        const r = nearest.getBoundingClientRect();
+        const isFlexRow = container.classList.contains('sortable-color-images');
+        const before = isFlexRow
+          ? cx < r.left + r.width / 2
+          : (cy < r.top + r.height / 2 || (Math.abs(cy - (r.top + r.height / 2)) < r.height / 2 && cx < r.left + r.width / 2));
+        container.insertBefore(placeholder, before ? nearest : nearest.nextSibling);
+      }
+    }
+
+    function onEnd() {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup',   onEnd);
+      document.removeEventListener('touchmove', onMove);
+      document.removeEventListener('touchend',  onEnd);
+
+      ghost.remove();
+
+      // Restore item right where placeholder is, then remove placeholder
+      item.style.display = '';
+      placeholder.parentNode.insertBefore(item, placeholder);
+      placeholder.remove();
+      placeholder = null;
+      dragging = null;
+
+      updateFirstBadge(container);
+      schedulePersist(container);
+    }
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup',   onEnd);
+    document.addEventListener('touchmove', onMove, { passive: false });
+    document.addEventListener('touchend',  onEnd);
+  }
+}
+
+function schedulePersist(container) {
+  // Debounce: cancel any pending save for this container, wait 400ms after last drop
+  if (_persistTimers.has(container)) clearTimeout(_persistTimers.get(container));
+  _persistTimers.set(container, setTimeout(() => {
+    _persistTimers.delete(container);
+    persistImageOrder(container);
+  }, 400));
+}
+
+
+function updateFirstBadge(container) {
+  container.querySelectorAll('.sortable-image').forEach((item, idx) => {
+    let badge = item.querySelector('.first-badge');
+    if (idx === 0) {
+      if (!badge) {
+        badge = document.createElement('span');
+        badge.className = 'first-badge absolute top-1 left-1 z-10 bg-accent-500 text-primary text-[9px] font-bold px-1.5 py-0.5 rounded pointer-events-none';
+        badge.innerHTML = '<i class="fa-solid fa-star text-[8px]"></i> Main';
+        item.style.position = 'relative';
+        item.appendChild(badge);
+      }
+    } else {
+      badge?.remove();
+    }
+  });
+}
+
+async function persistImageOrder(container) {
+  const isColor = container.classList.contains('sortable-color-images');
+  const url = container.dataset.reorderUrl;
+  const orderedPublicIds = [...container.querySelectorAll('.sortable-image')]
+    .map(el => el.dataset.publicId)
+    .filter(Boolean);
+
+  if (!orderedPublicIds.length) return;
+
+  const body = isColor
+    ? { colorId: container.dataset.colorId, orderedPublicIds }
+    : { orderedPublicIds };
+
+  try {
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const d = await r.json();
+    if (d.success) showToast('Image order saved', 'success');
+    else showToast(d.message || 'Failed to save order', 'error');
+  } catch {
+    showToast('Network error saving order', 'error');
+  }
+}
+
+
+function initAllSortables() {
+  // Base product images grid
+  const baseGrid = document.getElementById('editImagePreview');
+  if (baseGrid) initSortableGrid(baseGrid);
+
+  // Color variant image rows
+  document.querySelectorAll('.sortable-color-images').forEach(el => initSortableGrid(el));
+}
+
+// Re-init after lazy images are loaded (colors panel)
+const _origInitLazy = initLazyImages;
+window.initLazyImages = function() {
+  _origInitLazy();
+  initAllSortables();
+};
+
+// ── Init ──────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  initLazyImages();
+  renderVariantTabs();
+  if (currentVariantType !== 'none') {
+    document.getElementById('flatStockInput').disabled = true;
+  }
+  initAllSortables();
+});
+</script>
