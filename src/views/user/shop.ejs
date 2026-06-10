@@ -1,0 +1,279 @@
+<% layout('layouts/user') %>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-8">
+  <!-- Breadcrumb -->
+  <nav class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-6">
+    <a href="/" class="hover:text-accent-500">Home</a>
+    <i class="fa-solid fa-chevron-right text-xs"></i>
+    <span class="text-gray-900 dark:text-white font-medium">Shop</span>
+    <% if (filters.search) { %><i class="fa-solid fa-chevron-right text-xs"></i><span class="text-accent-500">"<%= filters.search %>"</span><% } %>
+  </nav>
+
+  <div class="flex gap-8">
+    <!-- Sidebar Filters -->
+    <aside class="w-64 flex-shrink-0 hidden lg:block">
+      <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-5 sticky top-24">
+        <div class="flex items-center justify-between mb-5">
+          <h3 class="font-bold text-gray-900 dark:text-white">Filters</h3>
+          <a href="/shop" class="text-xs text-accent-500 hover:text-accent-600">Clear all</a>
+        </div>
+
+        <form id="filterForm" method="GET" action="/shop">
+          <!-- Hidden inputs to preserve state -->
+          <% if (filters.sort) { %><input type="hidden" name="sort" value="<%= filters.sort %>"/><% } %>
+          <% if (filters.search) { %><input type="hidden" name="search" value="<%= filters.search %>"/><% } %>
+
+          <!-- Categories -->
+          <div class="mb-6">
+            <h4 class="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-3 uppercase tracking-wider">Category</h4>
+            <div class="space-y-2">
+              <% categories.forEach(cat => { %>
+              <label class="flex items-center gap-2.5 cursor-pointer group">
+                <input type="radio" name="category" value="<%= cat.slug %>"
+                  <%= filters.category === cat.slug ? 'checked' : '' %>
+                  onchange="document.getElementById('filterForm').submit()"
+                  class="w-4 h-4 accent-yellow-500"/>
+                <span class="text-sm text-gray-600 dark:text-gray-400 group-hover:text-accent-500 transition-colors"><%= cat.name %></span>
+              </label>
+              <% }) %>
+            </div>
+          </div>
+
+          <!-- Product Type -->
+          
+
+          <!-- Price Range -->
+          <div class="mb-6">
+            <h4 class="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-3 uppercase tracking-wider">Price Range</h4>
+            <div class="space-y-2">
+              <div class="flex gap-2">
+                <input type="number" name="minPrice" placeholder="Min" value="<%= filters.minPrice || '' %>"
+                  class="w-full border border-gray-200 dark:border-gray-700 dark:bg-gray-800 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-accent-500 focus:border-transparent outline-none"/>
+                <input type="number" name="maxPrice" placeholder="Max" value="<%= filters.maxPrice || '' %>"
+                  class="w-full border border-gray-200 dark:border-gray-700 dark:bg-gray-800 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-accent-500 focus:border-transparent outline-none"/>
+              </div>
+              <button type="submit" class="w-full btn-primary py-2 rounded-lg text-sm font-semibold">Apply</button>
+            </div>
+          </div>
+
+          <!-- Rating Filter -->
+          <div class="mb-6">
+            <h4 class="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-3 uppercase tracking-wider">Rating</h4>
+            <div class="space-y-2">
+              <% [4,3,2].forEach(r => { %>
+              <label class="flex items-center gap-2.5 cursor-pointer group">
+                <input type="radio" name="rating" value="<%= r %>"
+                  <%= filters.rating == r ? 'checked' : '' %>
+                  onchange="document.getElementById('filterForm').submit()"
+                  class="w-4 h-4 accent-yellow-500"/>
+                <div class="flex items-center gap-1">
+                  <% for(let i=1;i<=5;i++) { %><i class="fa-<%= i<=r ? 'solid' : 'regular' %> fa-star text-accent-400 text-xs"></i><% } %>
+                  <span class="text-xs text-gray-500 dark:text-gray-400">&amp; up</span>
+                </div>
+              </label>
+              <% }) %>
+            </div>
+          </div>
+
+          <!-- Quick Filters -->
+          <div class="mb-4">
+            <h4 class="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-3 uppercase tracking-wider">Quick Filters</h4>
+            <div class="space-y-2">
+              <label class="flex items-center gap-2.5 cursor-pointer">
+                <input type="checkbox" name="offer" value="true" <%= filters.offer === 'true' ? 'checked' : '' %>
+                  onchange="document.getElementById('filterForm').submit()" class="w-4 h-4 accent-yellow-500"/>
+                <span class="text-sm text-gray-600 dark:text-gray-400">Hot Sale <i class="fa-solid fa-fire text-red-500 text-xs"></i></span>
+              </label>
+              <label class="flex items-center gap-2.5 cursor-pointer">
+                <input type="checkbox" name="inStock" value="true" <%= filters.inStock === 'true' ? 'checked' : '' %>
+                  onchange="document.getElementById('filterForm').submit()" class="w-4 h-4 accent-yellow-500"/>
+                <span class="text-sm text-gray-600 dark:text-gray-400">In Stock Only</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Brands -->
+          <% if (brands && brands.length) { %>
+          <div class="mb-4">
+            <h4 class="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-3 uppercase tracking-wider">Brand</h4>
+            <div class="space-y-2 max-h-36 overflow-y-auto">
+              <% brands.slice(0,10).forEach(brand => { %>
+              <label class="flex items-center gap-2.5 cursor-pointer group">
+                <input type="radio" name="brand" value="<%= brand %>"
+                  <%= filters.brand === brand ? 'checked' : '' %>
+                  onchange="document.getElementById('filterForm').submit()"
+                  class="w-4 h-4 accent-yellow-500"/>
+                <span class="text-sm text-gray-600 dark:text-gray-400 group-hover:text-accent-500 transition-colors"><%= brand %></span>
+              </label>
+              <% }) %>
+            </div>
+          </div>
+          <% } %>
+        </form>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <div class="flex-1 min-w-0">
+      <!-- Top Bar -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div>
+          <h1 class="text-2xl font-black dark:text-white">
+            <% if (filters.search) { %>Results for "<%= filters.search %>"
+            <% } else if (filters.type) { %><%= filters.type.charAt(0).toUpperCase() + filters.type.slice(1) %>s
+            <% } else { %>All Products<% } %>
+          </h1>
+          <p class="text-gray-500 dark:text-gray-400 text-sm mt-0.5"><%= pagination.total %> products found</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <!-- Mobile Filter Toggle -->
+          <button onclick="document.getElementById('mobileFilter').classList.toggle('hidden')"
+            class="lg:hidden flex items-center gap-2 px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-medium hover:border-accent-500 transition-colors dark:text-gray-300">
+            <i class="fa-solid fa-sliders"></i> Filters
+          </button>
+          <!-- Sort -->
+          <select name="sort" onchange="updateSort(this.value)"
+            class="border border-gray-200 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-accent-500 outline-none">
+            <option value="newest" <%= filters.sort==='newest'?'selected':'' %>>Newest First</option>
+            <option value="price_asc" <%= filters.sort==='price_asc'?'selected':'' %>>Price: Low to High</option>
+            <option value="price_desc" <%= filters.sort==='price_desc'?'selected':'' %>>Price: High to Low</option>
+            <option value="rating" <%= filters.sort==='rating'?'selected':'' %>>Top Rated</option>
+            <option value="popular" <%= filters.sort==='popular'?'selected':'' %>>Most Popular</option>
+            <option value="name_asc" <%= filters.sort==='name_asc'?'selected':'' %>>Name: A-Z</option>
+          </select>
+          <!-- View Toggle -->
+          <div class="hidden sm:flex border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+            <button onclick="setView('grid')" id="gridViewBtn" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-accent-500"><i class="fa-solid fa-grid-2 text-sm"></i></button>
+            <button onclick="setView('list')" id="listViewBtn" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-400"><i class="fa-solid fa-list text-sm"></i></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Active Filters -->
+      <% const hasFilters = filters.category || filters.brand || filters.minPrice || filters.maxPrice || filters.type || filters.rating || filters.offer || filters.inStock; %>
+      <% if (hasFilters) { %>
+      <div class="flex flex-wrap gap-2 mb-4">
+        <% if (filters.category) { %><span class="inline-flex items-center gap-1.5 bg-accent-100 dark:bg-accent-900/20 text-accent-700 dark:text-accent-400 rounded-full px-3 py-1 text-xs font-medium">Category: <%= filters.category %><a href="<%= currentUrl.replace(/[?&]category=[^&]*/g, '') %>" class="ml-1 hover:text-red-500"><i class="fa-solid fa-xmark"></i></a></span><% } %>
+        <% if (filters.type) { %><span class="inline-flex items-center gap-1.5 bg-accent-100 dark:bg-accent-900/20 text-accent-700 dark:text-accent-400 rounded-full px-3 py-1 text-xs font-medium">Type: <%= filters.type %><a href="<%= currentUrl.replace(/[?&]type=[^&]*/g, '') %>" class="ml-1 hover:text-red-500"><i class="fa-solid fa-xmark"></i></a></span><% } %>
+        <% if (filters.offer === 'true') { %><span class="inline-flex items-center gap-1.5 bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400 rounded-full px-3 py-1 text-xs font-medium">Hot Sale<a href="<%= currentUrl.replace(/[?&]offer=[^&]*/g, '') %>" class="ml-1"><i class="fa-solid fa-xmark"></i></a></span><% } %>
+        <a href="/shop" class="inline-flex items-center gap-1.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-full px-3 py-1 text-xs font-medium hover:bg-red-100 hover:text-red-600 transition-colors">Clear all <i class="fa-solid fa-xmark"></i></a>
+      </div>
+      <% } %>
+
+      <!-- Products Grid -->
+      <% if (products && products.length) { %>
+      <div id="productGrid" class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5">
+        <%- include('../partials/user/product-grid', { products, wishlistProductIds }) %>
+      </div>
+
+      <!-- Pagination -->
+      <% if (pagination.totalPages > 1) { %>
+      <div class="flex items-center justify-center gap-2 mt-12">
+        <% if (pagination.page > 1) { %>
+          <a href="?<%= new URLSearchParams({...filters, page: pagination.page - 1}).toString() %>"
+            class="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 hover:border-accent-500 hover:text-accent-500 transition-all dark:text-gray-300">
+            <i class="fa-solid fa-chevron-left text-sm"></i>
+          </a>
+        <% } %>
+        <% for(let p = Math.max(1, pagination.page - 2); p <= Math.min(pagination.totalPages, pagination.page + 2); p++) { %>
+          <a href="?<%= new URLSearchParams({...filters, page: p}).toString() %>"
+            class="w-10 h-10 flex items-center justify-center rounded-lg text-sm font-semibold transition-all
+              <%= p === pagination.page ? 'bg-accent-500 text-white shadow-lg' : 'border border-gray-200 dark:border-gray-700 hover:border-accent-500 hover:text-accent-500 dark:text-gray-300' %>">
+            <%= p %>
+          </a>
+        <% } %>
+        <% if (pagination.page < pagination.totalPages) { %>
+          <a href="?<%= new URLSearchParams({...filters, page: pagination.page + 1}).toString() %>"
+            class="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 hover:border-accent-500 hover:text-accent-500 transition-all dark:text-gray-300">
+            <i class="fa-solid fa-chevron-right text-sm"></i>
+          </a>
+        <% } %>
+      </div>
+      <% } %>
+
+      <% } else { %>
+      <!-- Empty State -->
+      <div class="text-center py-24">
+        <div class="text-7xl mb-4">🔍</div>
+        <h3 class="text-xl font-bold dark:text-white mb-2">No products found</h3>
+        <p class="text-gray-500 dark:text-gray-400 mb-6">Try adjusting your filters or search query</p>
+        <a href="/shop" class="btn-primary inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold">Clear Filters</a>
+      </div>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<!-- Mobile Filter Drawer -->
+<div id="mobileFilter" class="hidden fixed inset-0 z-50 lg:hidden">
+  <div class="absolute inset-0 transparent-black" onclick="document.getElementById('mobileFilter').classList.add('hidden')"></div>
+  <div class="absolute right-0 top-0 bottom-0 w-72 bg-white dark:bg-gray-900 overflow-y-auto p-5 shadow-2xl">
+    <div class="flex items-center justify-between mb-5">
+      <h3 class="font-bold text-gray-900 dark:text-white">Filters</h3>
+      <button onclick="document.getElementById('mobileFilter').classList.add('hidden')" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-xl"></i></button>
+    </div>
+    <!-- Simplified mobile filters -->
+    <form method="GET" action="/shop">
+      <% if (filters.search) { %><input type="hidden" name="search" value="<%= filters.search %>"/><% } %>
+      <div class="space-y-4">
+        <div>
+          <label class="text-sm font-semibold text-gray-700 dark:text-gray-300 block mb-2">Category</label>
+          <select name="category" class="w-full border dark:border-gray-700 dark:bg-gray-800 rounded-lg px-3 py-2 text-sm dark:text-gray-200">
+            <option value="">All Categories</option>
+            <% categories.forEach(c => { %><option value="<%= c.slug %>" <%= filters.category === c.slug ? 'selected' : '' %>><%= c.name %></option><% }) %>
+          </select>
+        </div>
+        <div>
+          <label class="text-sm font-semibold text-gray-700 dark:text-gray-300 block mb-2">Product Type</label>
+          <select name="type" class="w-full border dark:border-gray-700 dark:bg-gray-800 rounded-lg px-3 py-2 text-sm dark:text-gray-200">
+            <option value="">All Types</option>
+            <% ['jersey','ball','boots','equipment','clothing','goalkeeper','training','accessories'].forEach(t => { %><option value="<%= t %>" <%= filters.type === t ? 'selected' : '' %>><%= t %></option><% }) %>
+          </select>
+        </div>
+        <div class="flex gap-2">
+          <input type="number" name="minPrice" placeholder="Min ₹" value="<%= filters.minPrice || '' %>" class="w-full border dark:border-gray-700 dark:bg-gray-800 rounded-lg px-3 py-2 text-sm dark:text-gray-200"/>
+          <input type="number" name="maxPrice" placeholder="Max ₹" value="<%= filters.maxPrice || '' %>" class="w-full border dark:border-gray-700 dark:bg-gray-800 rounded-lg px-3 py-2 text-sm dark:text-gray-200"/>
+        </div>
+        <label class="flex items-center gap-2"><input type="checkbox" name="offer" value="true" <%= filters.offer==='true'?'checked':'' %> class="accent-yellow-500"/><span class="text-sm dark:text-gray-300">Hot Sale</span></label>
+        <label class="flex items-center gap-2"><input type="checkbox" name="inStock" value="true" <%= filters.inStock==='true'?'checked':'' %> class="accent-yellow-500"/><span class="text-sm dark:text-gray-300">In Stock Only</span></label>
+        <button type="submit" class="w-full btn-primary py-3 rounded-xl font-semibold">Apply Filters</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function updateSort(val) {
+  const url = new URL(window.location.href);
+  url.searchParams.set('sort', val);
+  url.searchParams.set('page', '1');
+  window.location.href = url.toString();
+}
+
+function setView(type) {
+  const grid = document.getElementById('productGrid');
+  const gridBtn = document.getElementById('gridViewBtn');
+  const listBtn = document.getElementById('listViewBtn');
+
+  if (type === 'list') {
+    grid.className = 'flex flex-col gap-4 list-view';
+    listBtn.classList.add('text-accent-500');
+    listBtn.classList.remove('text-gray-400');
+    gridBtn.classList.remove('text-accent-500');
+    gridBtn.classList.add('text-gray-400');
+    localStorage.setItem('shopView', 'list');
+  } else {
+    grid.className = 'grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5';
+    gridBtn.classList.add('text-accent-500');
+    gridBtn.classList.remove('text-gray-400');
+    listBtn.classList.remove('text-accent-500');
+    listBtn.classList.add('text-gray-400');
+    localStorage.setItem('shopView', 'grid');
+  }
+}
+// Restore saved view on page load
+document.addEventListener('DOMContentLoaded', () => {
+  const saved = localStorage.getItem('shopView');
+  if (saved === 'list') setView('list');
+});
+</script>

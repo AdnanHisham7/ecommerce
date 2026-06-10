@@ -1,0 +1,28 @@
+<% if (featured && featured.length) { %>
+<section class="bg-gray-50 dark:bg-zinc-900/50 py-12">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex items-end justify-between mb-8">
+      <div>
+        <span class="inline-flex items-center gap-1.5 text-accent-500 font-semibold text-sm mb-2">
+          <i class="fa-solid fa-star text-xs"></i> Editor's Choice
+        </span>
+        <h2 class="text-3xl md:text-4xl font-black dark:text-white tracking-tight">
+          Featured <span class="text-accent-500">Products</span>
+        </h2>
+        <p class="text-gray-500 dark:text-gray-400 mt-1 text-sm">Hand-picked by our football experts</p>
+      </div>
+      <a href="/shop?filter=featured" class="hidden md:flex items-center gap-1.5 text-accent-500 hover:text-accent-600 font-semibold text-sm transition-colors group">
+        View All <i class="fa-solid fa-arrow-right text-xs group-hover:translate-x-1 transition-transform"></i>
+      </a>
+    </div>
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-5">
+      <%- include('../product-grid', { products: featured }) %>
+    </div>
+    <div class="mt-6 text-center md:hidden">
+      <a href="/shop?filter=featured" class="inline-flex items-center gap-2 text-accent-500 font-semibold text-sm border border-accent-500/30 px-5 py-2.5 rounded-xl hover:bg-accent-500/5 transition-colors">
+        View All Featured <i class="fa-solid fa-arrow-right text-xs"></i>
+      </a>
+    </div>
+  </div>
+</section>
+<% } %>

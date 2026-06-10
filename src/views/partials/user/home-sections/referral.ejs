@@ -1,0 +1,31 @@
+<% if (featureFlags.referralProgram) { %>
+<section class="relative overflow-hidden bg-gradient-to-r from-primary via-[#16213e] to-primary py-14">
+  <!-- Decorative background -->
+  <div class="absolute inset-0 opacity-10"
+style="background-image: radial-gradient(circle, rgba(240, 165, 0, 0.25) 1px, transparent 1px); background-size: 30px 30px;"></div>
+  <div class="absolute -right-24 -top-24 w-72 h-72 bg-accent-500/10 rounded-full blur-3xl pointer-events-none"></div>
+  <div class="absolute -left-12 -bottom-12 w-48 h-48 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+  <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex flex-col md:flex-row items-center justify-between gap-8">
+      <div class="text-white text-left">
+        <div class="inline-flex items-center gap-2 bg-accent-500/15 border border-accent-500/30 text-accent-400 rounded-full px-4 py-1.5 text-sm font-semibold mb-4">
+          <i class="fa-solid fa-gift text-xs"></i> Referral Program
+        </div>
+        <h3 class="text-2xl md:text-4xl font-black mb-2 tracking-tight">
+          Earn <span class="text-accent-400">₹100</span> for Every Friend
+        </h3>
+        <p class="text-gray-300 text-base max-w-md">
+          Share your unique link — you earn ₹100 wallet credit when they place their first order. No limits!
+        </p>
+      </div>
+      <div class="flex flex-col items-center gap-3 flex-shrink-0">
+        <a href="/referral" class="btn-primary inline-flex items-center gap-2 px-8 py-4 rounded-xl font-bold text-base whitespace-nowrap shadow-2xl">
+          Refer & Earn <i class="fa-solid fa-arrow-right"></i>
+        </a>
+        <p class="text-gray-500 text-xs">Join 2,000+ users already earning</p>
+      </div>
+    </div>
+  </div>
+</section>
+<% } %> <%# /featureFlags.referralProgram %>

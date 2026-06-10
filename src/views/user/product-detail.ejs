@@ -1,0 +1,792 @@
+<% layout('layouts/user') %>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-8">
+  <!-- Breadcrumb -->
+  <nav class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-4 md:mb-8">
+    <a href="/" class="hover:text-accent-500">Home</a>
+    <i class="fa-solid fa-chevron-right text-xs"></i>
+    <a href="/shop" class="hover:text-accent-500">Shop</a>
+    <i class="fa-solid fa-chevron-right text-xs"></i>
+    <% if (product.category) { %>
+      <a href="/shop?category=<%= product.category.slug %>" class="hover:text-accent-500"><%= product.category.name %></a>
+      <i class="fa-solid fa-chevron-right text-xs"></i>
+    <% } %>
+    <span class="text-gray-900 dark:text-white font-medium truncate max-w-xs"><%= product.name %></span>
+  </nav>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-10 mb-8 md:mb-16">
+    <!-- Image Gallery -->
+    <div class="space-y-3">
+      <div class="relative bg-gray-100 dark:bg-gray-800 rounded-2xl overflow-hidden aspect-square group">
+        <%
+          const needsColorDefault = (product.variantType === 'color' || product.variantType === 'color_size');
+          const firstColorImg = needsColorDefault && product.colorVariants?.length
+            ? product.colorVariants.find(cv => cv.isActive && cv.images?.length)?.images?.[0]?.url
+            : null;
+          const initialImg = firstColorImg || product.images?.[0]?.url || '/images/placeholder.png';
+        %>
+        <img id="mainImage" src="<%= initialImg %>"
+          alt="<%= product.name %>" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"/>
+        <% if (product.discountPercent > 0) { %>
+          <div class="absolute top-4 left-4 bg-red-500 text-white text-sm font-bold px-3 py-1 rounded-full"><%= product.discountPercent %>% OFF</div>
+        <% } %>
+        <% if (product.isNewArrival) { %>
+          <div class="absolute top-4 right-4 bg-green-500 text-white text-sm font-bold px-3 py-1 rounded-full">New</div>
+        <% } %>
+        <div class="absolute bottom-4 right-4 transparent-black text-white text-xs px-2 py-1 rounded-full backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity"><i class="fa-solid fa-magnifying-glass-plus mr-1"></i>Hover to zoom</div>
+      </div>
+
+      <!-- Thumbnails -->
+      <div class="flex gap-2 overflow-x-auto pb-1" id="thumbnailStrip">
+        <% if (!needsColorDefault) { %>
+          <% (product.images || []).forEach((img, i) => { %>
+          <button onclick="setMainImage('<%= img.url %>', this)"
+            data-src="<%= img.url %>"
+            class="flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden border-2 transition-all <%= i === 0 ? 'border-accent-500' : 'border-transparent hover:border-accent-300' %>">
+            <img src="<%= img.url %>" alt="" class="w-full h-full object-cover"/>
+          </button>
+          <% }) %>
+        <% } %>
+        <%# For color/color_size: thumbnails injected dynamically by swapThumbnailsForColor() %>
+      </div>
+    </div>
+
+    <!-- Product Info -->
+    <div class="space-y-5">
+      <div>
+        <div class="flex items-center gap-2 mb-2">
+          <span class="text-xs font-semibold text-accent-500 uppercase tracking-wider bg-accent-50 dark:bg-accent-900/20 px-2 py-0.5 rounded-full"><%= product.brand || '—' %></span>
+          <span id="stockBadge" class="text-xs font-semibold px-2 py-0.5 rounded-full
+            <%= product.stockStatus === 'in_stock' ? 'text-green-500 bg-green-50 dark:bg-green-900/20' : product.stockStatus === 'low_stock' ? 'text-yellow-500 bg-yellow-50 dark:bg-yellow-900/20' : 'text-red-500 bg-red-50 dark:bg-red-900/20' %>">
+            <i class="fa-solid fa-circle text-xs mr-1"></i>
+            <%= product.stockStatus === 'in_stock' ? 'In Stock' : product.stockStatus === 'low_stock' ? 'Low Stock' : 'Out of Stock' %>
+          </span>
+        </div>
+        <h1 class="text-2xl md:text-3xl font-black text-gray-900 dark:text-white leading-tight mb-2"><%= product.name %></h1>
+        <div class="flex items-center gap-3">
+          <div class="flex">
+            <% for(let i=1;i<=5;i++) { %>
+              <i class="fa-<%= i<=Math.round(product.avgRating) ? 'solid' : 'regular' %> fa-star text-accent-400 text-sm"></i>
+            <% } %>
+          </div>
+          <span class="text-sm font-semibold text-gray-700 dark:text-gray-300"><%= product.avgRating?.toFixed(1) || '0.0' %></span>
+          <span class="text-sm text-gray-500">(<%= product.reviewCount || 0 %> reviews)</span>
+          <span class="text-gray-300 dark:text-gray-700">|</span>
+          <span class="text-sm text-gray-500"><%= product.salesCount || 0 %> sold</span>
+        </div>
+      </div>
+
+      <!-- Price -->
+      <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4">
+        <%
+          const vt = product.variantType || 'none';
+          const hasColor    = vt === 'color'      || vt === 'color_size';
+          const hasSize     = vt === 'size'        || vt === 'color_size';
+          const hasBoth     = vt === 'color_size';
+          const hasVariants = vt !== 'none';
+
+          const isVariantProduct = vt !== 'none';
+          const activeSkus = (product.variants || []).filter(v => v.isActive);
+          const minVariantPrice = activeSkus.length ? Math.min(...activeSkus.map(v => v.price)) : null;
+          const effectivePrice = product.discountedPrice || product.basePrice;
+        %>
+        <div class="flex items-end gap-3 flex-wrap">
+          <% if (isVariantProduct && minVariantPrice !== null) { %>
+            <span id="priceDisplay" class="text-3xl font-black text-gray-900 dark:text-white">₹<%= minVariantPrice.toLocaleString('en-IN') %></span>
+            <span class="text-sm text-gray-500 mb-1" id="priceFromLabel">from</span>
+            <%# Variant compareAtPrice — hidden until a SKU is selected, lives in same row as price %>
+            <span id="skuCompareAtPrice" class="hidden text-lg text-gray-400 line-through mb-0.5"></span>
+            <span id="skuSaveAmount"     class="hidden text-green-500 font-bold text-sm mb-1"></span>
+          <% } else { %>
+            <span id="priceDisplay" class="text-3xl font-black text-gray-900 dark:text-white">₹<%= effectivePrice.toLocaleString('en-IN') %></span>
+            <% if (product.compareAtPrice && product.compareAtPrice > product.basePrice) { %>
+              <span class="text-lg text-gray-400 line-through mb-0.5">₹<%= product.compareAtPrice.toLocaleString('en-IN') %></span>
+              <span class="text-green-500 font-bold text-sm mb-1">Save ₹<%= (product.compareAtPrice - effectivePrice).toLocaleString('en-IN') %></span>
+            <% } %>
+          <% } %>
+        </div>
+        <p class="text-xs text-gray-500 mt-1">Inclusive of all taxes. Free shipping above ₹<%= commerceSettings.freeShippingThreshold %></p>
+      </div>
+
+      <% if (product.shortDescription) { %>
+        <p class="text-gray-600 dark:text-gray-400 leading-relaxed"><%= product.shortDescription %></p>
+      <% } %>
+
+      <!-- ==================== VARIANT SELECTOR ==================== -->
+      <% if (hasVariants) { %>
+      <div class="space-y-4" id="variantSelector">
+
+        <!-- Color Selector -->
+        <% if (hasColor && product.colorVariants?.length) { %>
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+            Color: <span id="selectedColorName" class="text-accent-500 font-bold"></span>
+          </label>
+          <div class="flex flex-wrap gap-2" id="colorButtons">
+            <% product.colorVariants.filter(c => c.isActive).forEach(cv => { %>
+            <button type="button"
+              onclick="selectColor('<%= cv._id %>', this)"
+              data-color-id="<%= cv._id %>"
+              data-color-name="<%= cv.color %>"
+              title="<%= cv.color %>"
+              class="color-btn relative w-10 h-10 rounded-full border-2 border-transparent hover:border-accent-500 transition-all shadow-sm focus:outline-none"
+              style="<%= cv.colorHex ? `background-color:${cv.colorHex}` : 'background:#888' %>">
+              <% if (!cv.colorHex) { %>
+                <span class="absolute inset-0 flex items-center justify-center text-xs font-bold text-white"><%= cv.color.charAt(0) %></span>
+              <% } %>
+            </button>
+            <% }) %>
+          </div>
+        </div>
+        <% } %>
+
+        <!-- Size Selector -->
+        <% if (hasSize && product.sizeVariants?.length) { %>
+        <div id="sizeSelectorWrapper">
+          <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+            Size: <span id="selectedSizeName" class="text-accent-500 font-bold"></span>
+          </label>
+          <div class="flex flex-wrap gap-2" id="sizeButtons">
+            <% product.sizeVariants.filter(s => s.isActive).forEach(sv => { %>
+            <button type="button"
+              onclick="selectSize('<%= sv._id %>', this)"
+              data-size-id="<%= sv._id %>"
+              data-size-name="<%= sv.size %>"
+              class="size-btn px-4 py-2 border-2 border-gray-200 dark:border-gray-700 rounded-lg text-sm font-semibold transition-all dark:text-gray-300 disabled:opacity-40 disabled:cursor-not-allowed"
+              <%= hasBoth ? 'disabled' : '' %>>
+              <%= sv.size %>
+            </button>
+            <% }) %>
+          </div>
+          <% if (hasBoth) { %>
+          <p id="sizeHint" class="text-xs text-gray-500 mt-1.5">Select a color first to see available sizes</p>
+          <% } %>
+        </div>
+        <% } %>
+
+        <!-- Stock info for selected SKU -->
+        <div id="skuStockInfo" class="hidden text-xs font-semibold px-3 py-2 rounded-lg"></div>
+
+        <!-- Hidden state fields -->
+        <input type="hidden" id="selectedColorId" value=""/>
+        <input type="hidden" id="selectedSizeId"  value=""/>
+        <input type="hidden" id="selectedVariantId" value=""/>
+      </div>
+      <% } %>
+
+      <!-- Quantity -->
+      <div class="flex items-center gap-3">
+        <label class="text-sm font-semibold text-gray-700 dark:text-gray-300">Quantity:</label>
+        <div class="flex items-center border-2 border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
+          <button onclick="changeQty(-1)" class="px-4 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-600 dark:text-gray-300 font-bold text-lg">−</button>
+          <span id="quantityDisplay" class="px-5 py-2.5 font-bold text-gray-900 dark:text-white min-w-[3rem] text-center">1</span>
+          <button onclick="changeQty(1)" class="px-4 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-600 dark:text-gray-300 font-bold text-lg">+</button>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex gap-2 md:gap-3">
+        <% if (product.stockStatus !== 'out_of_stock') { %>
+        <button onclick="handleAddToCart()" id="addToCartBtn" class="flex-1 btn-primary py-3.5 rounded-xl font-bold text-sm md:text-base flex items-center justify-center gap-2">
+          <i class="fa-solid fa-bag-shopping"></i> Add to Cart
+        </button>
+        <button onclick="handleBuyNow()" class="flex-1 bg-primary dark:bg-white dark:text-primary text-white py-3.5 rounded-xl font-bold text-sm md:text-base hover:opacity-90 transition-opacity flex items-center justify-center gap-2">
+          <i class="fa-solid fa-bolt"></i> Buy Now
+        </button>
+        <% } else { %>
+        <button disabled class="flex-1 bg-gray-300 dark:bg-gray-700 text-gray-500 py-3.5 rounded-xl font-bold text-base cursor-not-allowed">Out of Stock</button>
+        <% } %>
+        <button onclick="toggleWishlist('<%= product._id %>', this)"
+          class="w-14 h-14 border-2 border-gray-200 dark:border-gray-700 rounded-xl flex items-center justify-center hover:border-red-400 transition-all <%= isInWishlist ? 'text-red-500 border-red-400' : 'text-gray-400' %>">
+          <i class="fa-<%= isInWishlist ? 'solid' : 'regular' %> fa-heart text-xl"></i>
+        </button>
+        <button onclick="handleShareProduct(this)" title="Share this product"
+          class="w-14 h-14 border-2 border-gray-200 dark:border-gray-700 rounded-xl flex items-center justify-center hover:border-accent-400 hover:text-accent-500 text-gray-400 transition-all">
+          <i class="fa-solid fa-share-nodes text-xl"></i>
+        </button>
+      </div>
+
+      <!-- Trust Badges -->
+      <div class="grid grid-cols-3 gap-3 pt-2">
+        <% [
+          ['fa-shield-halved','text-green-500','Secure Payment'],
+          ['fa-truck','text-blue-500','Fast Delivery'],
+          ['fa-rotate-left','text-purple-500','Easy Returns'],
+        ].forEach(([icon, color, label]) => { %>
+        <div class="flex flex-col items-center gap-1 text-center p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
+          <i class="fa-solid <%= icon %> <%= color %> text-lg"></i>
+          <span class="text-xs text-gray-600 dark:text-gray-400 font-medium"><%= label %></span>
+        </div>
+        <% }) %>
+      </div>
+
+      <!-- Specifications -->
+      <% if (product.specifications && product.specifications.length) { %>
+      <div class="border-t border-gray-200 dark:border-gray-800 pt-5">
+        <h3 class="font-bold text-gray-900 dark:text-white mb-3">Specifications</h3>
+        <div class="grid grid-cols-2 gap-2">
+          <% product.specifications.forEach(spec => { %>
+          <div class="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-2.5">
+            <p class="text-xs text-gray-500 dark:text-gray-400"><%= spec.key %></p>
+            <p class="text-sm font-semibold dark:text-gray-200"><%= spec.value %></p>
+          </div>
+          <% }) %>
+        </div>
+      </div>
+      <% } %>
+    </div>
+  </div>
+
+  <!-- Tabs: Description / Reviews -->
+  <div class="mb-16">
+    <div class="flex border-b border-gray-200 dark:border-gray-800 mb-6">
+      <button onclick="showTab('description')" id="tab-description" class="tab-btn px-6 py-3 font-semibold text-sm border-b-2 border-accent-500 text-accent-500 transition-all">Description</button>
+      <button onclick="showTab('reviews')" id="tab-reviews" class="tab-btn px-6 py-3 font-semibold text-sm border-b-2 border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-all">Reviews (<%= product.reviewCount || 0 %>)</button>
+    </div>
+
+    <div id="panel-description" class="prose prose-sm max-w-none dark:prose-invert text-gray-700 dark:text-gray-300 leading-relaxed"><%- product.description %></div>
+
+    <div id="panel-reviews" class="hidden">
+      <div class="bg-gray-50 dark:bg-gray-800/50 rounded-2xl p-6 mb-6">
+        <div class="flex flex-col md:flex-row items-center gap-8">
+          <div class="text-center">
+            <div class="text-6xl font-black text-gray-900 dark:text-white"><%= (product.avgRating || 0).toFixed(1) %></div>
+            <div class="flex justify-center my-2">
+              <% for(let i=1;i<=5;i++) { %><i class="fa-<%= i<=Math.round(product.avgRating||0)?'solid':'regular' %> fa-star text-accent-400 text-xl"></i><% } %>
+            </div>
+            <p class="text-gray-500 dark:text-gray-400 text-sm"><%= product.reviewCount || 0 %> reviews</p>
+          </div>
+          <div class="flex-1 space-y-2 w-full">
+            <% [5,4,3,2,1].forEach(star => {
+              const count = product.reviews.filter(r => r.isApproved && Math.round(r.rating) === star).length;
+              const pct = product.reviewCount ? Math.round((count/product.reviewCount)*100) : 0;
+            %>
+            <div class="flex items-center gap-3">
+              <span class="text-xs text-gray-500 w-4"><%= star %></span>
+              <i class="fa-solid fa-star text-accent-400 text-xs"></i>
+              <div class="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
+                <div class="bg-accent-500 h-2 rounded-full transition-all duration-700" style="width:<%= pct %>%"></div>
+              </div>
+              <span class="text-xs text-gray-500 w-8"><%= count %></span>
+            </div>
+            <% }) %>
+          </div>
+        </div>
+      </div>
+
+      <% if (featureFlags.reviewSystem) { %>
+      <% if (typeof currentUser !== 'undefined' && currentUser) { %>
+      <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-5 mb-6">
+        <h4 class="font-bold text-gray-900 dark:text-white mb-4">Write a Review</h4>
+        <form action="/reviews" method="POST">
+          <input type="hidden" name="productId" value="<%= product._id %>"/>
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Rating</label>
+            <div class="flex gap-2" id="starPicker">
+              <% for(let i=1;i<=5;i++) { %>
+              <button type="button" onclick="setRating(<%= i %>)" class="star-pick text-2xl text-gray-300 hover:text-accent-400 transition-colors" data-val="<%= i %>">★</button>
+              <% } %>
+            </div>
+            <input type="hidden" name="rating" id="ratingInput" required/>
+          </div>
+          <div class="mb-3">
+            <input type="text" name="title" placeholder="Review title" class="w-full border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-accent-500 outline-none"/>
+          </div>
+          <div class="mb-4">
+            <textarea name="comment" rows="3" placeholder="Share your experience..." required class="w-full border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-accent-500 outline-none resize-none"></textarea>
+          </div>
+          <button type="submit" class="btn-primary px-6 py-2.5 rounded-lg font-semibold text-sm">Submit Review</button>
+        </form>
+      </div>
+      <% } else { %>
+      <div class="bg-accent-50 dark:bg-accent-900/10 border border-accent-200 dark:border-accent-800 rounded-xl p-4 mb-6 text-center">
+        <p class="text-accent-700 dark:text-accent-400 text-sm"><a href="/auth/login" class="font-semibold underline">Login</a> to write a review</p>
+      </div>
+      <% } %>
+      <% } %> <%# /featureFlags.reviewSystem %>
+
+      <div class="space-y-4">
+      <% const approvedReviews = product.reviews.filter(r => r.isApproved); %>
+      <% if (approvedReviews.length) { %>
+        <% approvedReviews.slice().reverse().forEach(review => { %>
+        <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-5">
+          <div class="flex items-start justify-between mb-3">
+            <div class="flex items-center gap-3">
+              
+              <% if (review.user && review.user.avatar) { %>
+                <div class="w-9 h-9 rounded-full overflow-hidden border border-gray-100 dark:border-gray-800 flex-shrink-0">
+                  <img src="<%= review.user.avatar %>" alt="<%= review.user.name %>" class="w-full h-full object-cover" />
+                </div>
+              <% } else { %>
+                <div class="w-9 h-9 rounded-full bg-gradient-to-br from-accent-400 to-accent-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                  <%= review.user?.name?.charAt(0)?.toUpperCase() || 'U' %>
+                </div>
+              <% } %>
+              
+              <div>
+                <p class="font-semibold text-sm dark:text-white"><%= review.user?.name || 'Anonymous' %></p>
+                <p class="text-xs text-gray-400"><%= new Date(review.createdAt).toLocaleDateString('en-IN', { month:'short', day:'numeric', year:'numeric' }) %></p>
+              </div>
+            </div>
+            <div class="flex items-center gap-1">
+              <% for(let i=1;i<=5;i++) { %><i class="fa-<%= i<=review.rating?'solid':'regular' %> fa-star text-accent-400 text-xs"></i><% } %>
+              <% if (review.isVerifiedPurchase) { %><span class="ml-2 text-xs text-green-500 font-semibold bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded-full">✓ Verified</span><% } %>
+            </div>
+          </div>
+          <% if (review.title) { %><h5 class="font-semibold text-gray-900 dark:text-white mb-1"><%= review.title %></h5><% } %>
+          <p class="text-gray-600 dark:text-gray-400 text-sm leading-relaxed"><%= review.comment %></p>
+        </div>
+        <% }) %>
+      <% } else { %>
+        <div class="text-center py-12 text-gray-500 dark:text-gray-400"><div class="text-5xl mb-3">💬</div><p>No reviews yet. Be the first!</p></div>
+      <% } %>
+    </div>
+    </div>
+  </div>
+
+  <% if (product.frequentlyBoughtWith && product.frequentlyBoughtWith.length) { %>
+  <section class="mb-16">
+    <h2 class="text-2xl font-black dark:text-white mb-6">Frequently Bought <span class="text-accent-500">Together</span></h2>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <%- include('../partials/user/product-grid', { products: product.frequentlyBoughtWith }) %>
+    </div>
+  </section>
+  <% } %>
+
+  <% if (relatedProducts && relatedProducts.length) { %>
+  <section>
+    <h2 class="text-2xl font-black dark:text-white mb-6">You May Also <span class="text-accent-500">Like</span></h2>
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-5">
+      <%- include('../partials/user/product-grid', { products: relatedProducts }) %>
+    </div>
+  </section>
+  <% } %>
+</div>
+
+<script>
+// ==================== VARIANT DATA ====================
+const variantType = '<%- product.variantType || "none" %>';
+
+const colorVariants = <%- JSON.stringify(
+  (product.colorVariants || [])
+    .filter(c => c.isActive)
+    .map(cv => ({
+      _id:      cv._id,
+      color:    cv.color,
+      colorHex: cv.colorHex,
+      images:   cv.images || [],
+    }))
+) %>;
+
+const sizeVariants = <%- JSON.stringify(
+  (product.sizeVariants || [])
+    .filter(s => s.isActive)
+    .map(sv => ({
+      _id:  sv._id,
+      size: sv.size,
+    }))
+) %>;
+
+const skuVariants = <%- JSON.stringify(
+  (product.variants || [])
+    .filter(v => v.isActive)
+    .map(v => ({
+      _id:            v._id,
+      colorId:        v.colorId  ? String(v.colorId)  : null,
+      sizeId:         v.sizeId   ? String(v.sizeId)   : null,
+      sku:            v.sku  || '',
+      price:          v.price,
+      compareAtPrice: v.compareAtPrice || null,
+      stock:          v.stock,
+    }))
+) %>;
+
+const basePrice  = <%= product.discountedPrice || product.basePrice %>;
+const PRODUCT_ID = '<%= product._id %>';
+
+// ── State ─────────────────────────────────────
+let qty               = 1;
+let selectedColorId   = '';
+let selectedSizeId    = '';
+let selectedVariantId = '';
+
+// ==================== HELPERS ====================
+function findSkuVariant(colorId, sizeId) {
+  return skuVariants.find(v => {
+    const cMatch = colorId ? v.colorId === colorId : v.colorId === null;
+    const sMatch = sizeId  ? v.sizeId  === sizeId  : v.sizeId  === null;
+    return cMatch && sMatch;
+  }) || null;
+}
+
+function skusForColor(colorId) {
+  return skuVariants.filter(v => v.colorId === colorId);
+}
+
+function skusForSize(sizeId) {
+  return skuVariants.filter(v => v.sizeId === sizeId);
+}
+
+// ==================== PRICE DISPLAY ====================
+function updatePriceDisplay(sku) {
+  const priceEl    = document.getElementById('priceDisplay');
+  const fromLbl    = document.getElementById('priceFromLabel');
+  const compareEl  = document.getElementById('skuCompareAtPrice');
+  const saveEl     = document.getElementById('skuSaveAmount');
+
+  priceEl.textContent = `₹${sku.price.toLocaleString('en-IN')}`;
+  if (fromLbl) fromLbl.classList.add('hidden');
+
+  if (sku.compareAtPrice && sku.compareAtPrice > sku.price) {
+    const saved = sku.compareAtPrice - sku.price;
+    compareEl.textContent = `₹${sku.compareAtPrice.toLocaleString('en-IN')}`;
+    saveEl.textContent    = `Save ₹${saved.toLocaleString('en-IN')}`;
+    compareEl.classList.remove('hidden');
+    saveEl.classList.remove('hidden');
+  } else {
+    compareEl.classList.add('hidden');
+    saveEl.classList.add('hidden');
+    compareEl.textContent = '';
+    saveEl.textContent    = '';
+  }
+}
+
+function resetPriceDisplay() {
+  const priceEl   = document.getElementById('priceDisplay');
+  const fromLbl   = document.getElementById('priceFromLabel');
+  const compareEl = document.getElementById('skuCompareAtPrice');
+  const saveEl    = document.getElementById('skuSaveAmount');
+
+  priceEl.textContent = `₹${basePrice.toLocaleString('en-IN')}`;
+  if (fromLbl) fromLbl.classList.remove('hidden');
+  compareEl.classList.add('hidden');
+  saveEl.classList.add('hidden');
+  compareEl.textContent = '';
+  saveEl.textContent    = '';
+}
+
+// ==================== STOCK BADGE ====================
+function updateStockBadge(stock) {
+  const badge = document.getElementById('stockBadge');
+  if (!badge) return;
+
+  if (stock <= 0) {
+    badge.className = 'text-xs font-semibold px-2 py-0.5 rounded-full text-red-500 bg-red-50 dark:bg-red-900/20';
+    badge.innerHTML = '<i class="fa-solid fa-circle text-xs mr-1"></i>Out of Stock';
+  } else if (stock <= 5) {
+    badge.className = 'text-xs font-semibold px-2 py-0.5 rounded-full text-yellow-500 bg-yellow-50 dark:bg-yellow-900/20';
+    badge.innerHTML = '<i class="fa-solid fa-circle text-xs mr-1"></i>Low Stock';
+  } else {
+    badge.className = 'text-xs font-semibold px-2 py-0.5 rounded-full text-green-500 bg-green-50 dark:bg-green-900/20';
+    badge.innerHTML = '<i class="fa-solid fa-circle text-xs mr-1"></i>In Stock';
+  }
+}
+
+function showSkuStock(stock) {
+  const el = document.getElementById('skuStockInfo');
+  el.classList.remove('hidden');
+
+  if (stock <= 0) {
+    el.className = 'text-xs font-semibold px-3 py-2 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400';
+    el.textContent = 'Out of stock for this combination';
+  } else if (stock <= 5) {
+    el.className = 'text-xs font-semibold px-3 py-2 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400';
+    el.textContent = `Only ${stock} left — order soon!`;
+  } else {
+    el.className = 'text-xs font-semibold px-3 py-2 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400';
+    el.textContent = `${stock} in stock`;
+  }
+
+  updateStockBadge(stock);
+}
+
+function hideSkuStock() {
+  document.getElementById('skuStockInfo')?.classList.add('hidden');
+}
+
+// ==================== GALLERY ====================
+function setMainImage(url, btn) {
+  document.getElementById('mainImage').src = url;
+  document.querySelectorAll('#thumbnailStrip button').forEach(b => {
+    b.classList.remove('border-accent-500');
+    b.classList.add('border-transparent');
+  });
+  btn.classList.add('border-accent-500');
+  btn.classList.remove('border-transparent');
+}
+
+function setMainImageUrl(url) {
+  document.getElementById('mainImage').src = url;
+}
+
+function swapThumbnailsForColor(images) {
+  const strip = document.getElementById('thumbnailStrip');
+  // Remove previously injected color thumbs
+  strip.querySelectorAll('.color-thumb').forEach(el => el.remove());
+
+  images.forEach((img, i) => {
+    const btn = document.createElement('button');
+    btn.className = `color-thumb flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden border-2 transition-all ${i === 0 ? 'border-accent-500' : 'border-transparent hover:border-accent-300'}`;
+    btn.innerHTML = `<img src="${img.url}" loading="lazy" class="w-full h-full object-cover" alt=""/>`;
+    btn.onclick = () => {
+      document.getElementById('mainImage').src = img.url;
+      document.querySelectorAll('#thumbnailStrip button').forEach(b => {
+        b.classList.remove('border-accent-500');
+        b.classList.add('border-transparent');
+      });
+      btn.classList.add('border-accent-500');
+      btn.classList.remove('border-transparent');
+    };
+    strip.appendChild(btn);
+  });
+}
+
+// ==================== COLOR SELECTION ====================
+function selectColor(colorId, btn) {
+  selectedSizeId    = '';
+  selectedVariantId = '';
+  document.getElementById('selectedSizeId').value    = '';
+  document.getElementById('selectedVariantId').value = '';
+  document.getElementById('selectedColorId').value   = colorId;
+  selectedColorId = colorId;
+
+  // Highlight selected color button
+  document.querySelectorAll('.color-btn').forEach(b =>
+    b.classList.remove('ring-4','ring-accent-500','ring-offset-2','ring-offset-white','dark:ring-offset-gray-900')
+  );
+  btn.classList.add('ring-4','ring-accent-500','ring-offset-2','ring-offset-white','dark:ring-offset-gray-900');
+
+  // Update label
+  const colorData = colorVariants.find(c => c._id === colorId);
+  const nameEl = document.getElementById('selectedColorName');
+  if (nameEl) nameEl.textContent = colorData?.color || '';
+
+  // Swap images
+  if (colorData?.images?.length) {
+    swapThumbnailsForColor(colorData.images);
+    setMainImageUrl(colorData.images[0].url);
+  }
+
+  hideSkuStock();
+
+  if (variantType === 'color') {
+    const sku = findSkuVariant(colorId, null);
+    if (sku) {
+      selectedVariantId = sku._id;
+      document.getElementById('selectedVariantId').value = sku._id;
+      updatePriceDisplay(sku);
+      showSkuStock(sku.stock);
+    } else {
+      resetPriceDisplay();
+    }
+  } else if (variantType === 'color_size') {
+    const sizeNameEl = document.getElementById('selectedSizeName');
+    if (sizeNameEl) sizeNameEl.textContent = '';
+    resetPriceDisplay();
+    updateAvailableSizes(colorId);
+
+    const hint = document.getElementById('sizeHint');
+    if (hint) hint.classList.add('hidden');
+  }
+}
+
+// ==================== SIZE AVAILABILITY (color_size only) ====================
+function updateAvailableSizes(colorId) {
+  document.querySelectorAll('.size-btn').forEach(btn => {
+    const sizeId = btn.dataset.sizeId;
+    const sku = findSkuVariant(colorId, sizeId);
+
+    if (!sku || sku.stock <= 0) {
+      btn.disabled = true;
+      btn.classList.add('opacity-40','cursor-not-allowed','line-through');
+      btn.classList.remove('border-accent-500','text-accent-500');
+      btn.title = sku ? 'Out of stock' : 'Not available';
+    } else {
+      btn.disabled = false;
+      btn.classList.remove('opacity-40','cursor-not-allowed','line-through');
+      btn.classList.add('hover:border-accent-500','hover:text-accent-500');
+      btn.title = `${sku.stock} in stock`;
+    }
+    btn.classList.remove('border-accent-500','text-accent-500');
+    btn.classList.add('border-gray-200','dark:border-gray-700');
+  });
+}
+
+// ==================== SIZE SELECTION ====================
+function selectSize(sizeId, btn) {
+  if (btn.disabled) return;
+
+  if (variantType === 'color_size' && !selectedColorId) {
+    showToast('Please select a color first', 'error');
+    return;
+  }
+
+  selectedSizeId = sizeId;
+  document.getElementById('selectedSizeId').value = sizeId;
+
+  // Highlight
+  document.querySelectorAll('.size-btn').forEach(b => {
+    b.classList.remove('border-accent-500','text-accent-500');
+    b.classList.add('border-gray-200','dark:border-gray-700');
+  });
+  btn.classList.add('border-accent-500','text-accent-500');
+  btn.classList.remove('border-gray-200','dark:border-gray-700');
+
+  const sizeData = sizeVariants.find(s => s._id === sizeId);
+  const nameEl = document.getElementById('selectedSizeName');
+  if (nameEl) nameEl.textContent = sizeData?.size || '';
+
+  const resolvedColorId = variantType === 'color_size' ? selectedColorId : null;
+  const sku = findSkuVariant(resolvedColorId, sizeId);
+
+  if (sku) {
+    selectedVariantId = sku._id;
+    document.getElementById('selectedVariantId').value = sku._id;
+    updatePriceDisplay(sku);
+    showSkuStock(sku.stock);
+  } else {
+    selectedVariantId = '';
+    document.getElementById('selectedVariantId').value = '';
+    resetPriceDisplay();
+    hideSkuStock();
+  }
+}
+
+// ==================== QUANTITY ====================
+function changeQty(delta) {
+  qty = Math.max(1, Math.min(10, qty + delta));
+  document.getElementById('quantityDisplay').textContent = qty;
+}
+
+// ==================== VALIDATION ====================
+function validateVariantSelection() {
+  if (variantType === 'none') return true;
+
+  if (variantType === 'color' || variantType === 'color_size') {
+    if (!selectedColorId) { showToast('Please select a color', 'error'); return false; }
+  }
+  if (variantType === 'size' || variantType === 'color_size') {
+    if (!selectedSizeId) { showToast('Please select a size', 'error'); return false; }
+  }
+  if (!selectedVariantId) {
+    showToast('Selected combination is not available', 'error'); return false;
+  }
+
+  const sku = skuVariants.find(v => v._id === selectedVariantId);
+  if (!sku || sku.stock <= 0) {
+    showToast('This combination is out of stock', 'error'); return false;
+  }
+
+  return true;
+}
+
+// ==================== ADD TO CART ====================
+function handleAddToCart() {
+  if (!validateVariantSelection()) return;
+
+  fetch('/cart/add', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      productId: PRODUCT_ID,
+      colorId:   selectedColorId || null,
+      sizeId:    selectedSizeId  || null,
+      quantity:  qty,
+    }),
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      showToast(data.message, 'success');
+      const cc = document.getElementById('cartCount');
+      if (cc) cc.textContent = data.cartCount;
+    } else {
+      showToast(data.message || 'Error adding to cart', 'error');
+    }
+  })
+  .catch(() => showToast('Network error', 'error'));
+}
+
+
+// ==================== BUY NOW ====================
+// Logged-in users go straight to checkout. Guests get the item added to their
+// session cart and are sent to /cart so they can keep browsing — they'll only
+// be asked to log in once they hit "Proceed to Checkout" there.
+async function handleBuyNow() {
+  if (!validateVariantSelection()) return;
+
+  try {
+    const r = await fetch('/buy-now', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        productId: PRODUCT_ID,
+        colorId:   selectedColorId || null,
+        sizeId:    selectedSizeId  || null,
+        quantity:  qty,
+      }),
+    });
+
+    const data = await r.json();
+    if (data.success) window.location.href = data.redirectUrl;
+    else showToast(data.message || 'Error', 'error');
+  } catch { showToast('Error', 'error'); }
+}
+
+// ==================== SHARE PRODUCT ====================
+async function handleShareProduct(btn) {
+  const shareUrl = window.location.href;
+  const shareTitle = document.title;
+
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: shareTitle, url: shareUrl });
+    } catch (err) {
+      // AbortError = user cancelled the native share sheet; nothing to do.
+      if (err && err.name !== 'AbortError') {
+        showToast('Could not share this product', 'error');
+      }
+    }
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(shareUrl);
+    showToast('Product link copied to clipboard!', 'success');
+  } catch (err) {
+    showToast('Could not copy link — please copy it from the address bar', 'error');
+  }
+}
+
+// ==================== TABS ====================
+function showTab(tab) {
+  ['description','reviews'].forEach(t => {
+    document.getElementById(`panel-${t}`).classList.toggle('hidden', t !== tab);
+    const btn = document.getElementById(`tab-${t}`);
+    btn.classList.toggle('border-accent-500', t === tab);
+    btn.classList.toggle('text-accent-500',   t === tab);
+    btn.classList.toggle('border-transparent', t !== tab);
+    btn.classList.toggle('text-gray-500',      t !== tab);
+  });
+}
+
+function setRating(val) {
+  document.getElementById('ratingInput').value = val;
+  document.querySelectorAll('.star-pick').forEach((s,i) => {
+    s.classList.toggle('text-accent-400', i < val);
+    s.classList.toggle('text-gray-300',   i >= val);
+  });
+}
+
+// ==================== AUTO-SELECT ====================
+window.addEventListener('DOMContentLoaded', () => {
+  if ((variantType === 'color' || variantType === 'color_size') && colorVariants.length > 0) {
+    const firstBtn = document.querySelector('.color-btn');
+    if (firstBtn) selectColor(colorVariants[0]._id, firstBtn);
+  }
+  if (variantType === 'size' && sizeVariants.length > 0) {
+    const firstSizeBtn = document.querySelector('.size-btn:not([disabled])');
+    if (firstSizeBtn) selectSize(sizeVariants[0]._id, firstSizeBtn);
+  }
+});
+</script>

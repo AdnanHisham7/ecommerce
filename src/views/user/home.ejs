@@ -1,0 +1,154 @@
+<% layout('layouts/user') %>
+
+<!--
+  Homepage sections render in the order set by the admin under
+  Admin → System → Homepage Layout (Setting.getHomepageLayout()).
+  Navbar and Footer are part of layouts/user and are not part of this list.
+-->
+<% (sectionOrder || []).forEach(function (section) { %>
+  <% if (section === 'hero') { %>
+    <%- include('../partials/user/home-sections/hero', { banners }) %>
+  <% } else if (section === 'usp') { %>
+    <%- include('../partials/user/home-sections/usp', { banners }) %>
+  <% } else if (section === 'bestSellers') { %>
+    <%- include('../partials/user/home-sections/bestSellers', { bestSellers }) %>
+  <% } else if (section === 'categories') { %>
+    <%- include('../partials/user/home-sections/categories', { categories }) %>
+  <% } else if (section === 'newArrivals') { %>
+    <%- include('../partials/user/home-sections/newArrivals', { newArrivals }) %>
+  <% } else if (section === 'featured') { %>
+    <%- include('../partials/user/home-sections/featured', { featured }) %>
+  <% } else if (section === 'reviews') { %>
+    <%- include('../partials/user/home-sections/reviews') %>
+  <% } else if (section === 'brands') { %>
+    <%- include('../partials/user/home-sections/brands') %>
+  <% } else if (section === 'referral') { %>
+    <%- include('../partials/user/home-sections/referral', { featureFlags }) %>
+  <% } else if (section === 'recentlyViewed') { %>
+    <%- include('../partials/user/home-sections/recentlyViewed', { recentlyViewed }) %>
+  <% } else if (section === 'finalCta') { %>
+    <%- include('../partials/user/home-sections/finalCta', { brand }) %>
+  <% } %>
+<% }) %>
+
+<!-- ═══════════════════════════════════════════════════════════
+     CAROUSEL JAVASCRIPT
+     - requestAnimationFrame progress bar for smooth UX
+     - Keyboard navigation (accessibility)
+     - Pause on hover
+     - Proper cleanup to prevent memory leaks
+═══════════════════════════════════════════════════════════ -->
+<script>
+(function () {
+  'use strict';
+
+  const SLIDE_DURATION = 5000; // ms per slide
+
+  const slides = document.querySelectorAll('.carousel-slide');
+  const dots   = document.querySelectorAll('.carousel-dot');
+  const progressBar = document.getElementById('carouselProgress');
+
+  if (!slides.length) return;
+
+  let current    = 0;
+  let paused     = false;
+  let startTime  = null;
+  let rafId      = null;
+
+  // ── Core: activate a specific slide ────────────────────────
+  function activateSlide(index) {
+    // Deactivate current
+    slides[current].classList.remove('opacity-100', 'z-10', 'pointer-events-auto');
+    slides[current].classList.add('opacity-0', 'z-0', 'pointer-events-none');
+    slides[current].setAttribute('aria-hidden', 'true');
+
+    if (dots[current]) {
+      dots[current].classList.remove('bg-accent-500', 'w-8');
+      dots[current].classList.add('bg-white/40', 'w-2.5');
+      dots[current].setAttribute('aria-selected', 'false');
+    }
+
+    // Activate target
+    current = ((index % slides.length) + slides.length) % slides.length;
+
+    slides[current].classList.remove('opacity-0', 'z-0', 'pointer-events-none');
+    slides[current].classList.add('opacity-100', 'z-10', 'pointer-events-auto');
+    slides[current].setAttribute('aria-hidden', 'false');
+
+    if (dots[current]) {
+      dots[current].classList.add('bg-accent-500', 'w-8');
+      dots[current].classList.remove('bg-white/40', 'w-2.5');
+      dots[current].setAttribute('aria-selected', 'true');
+    }
+  }
+
+  // ── Progress bar animation loop ────────────────────────────
+  function tick(timestamp) {
+    if (paused) { rafId = requestAnimationFrame(tick); return; }
+    if (!startTime) startTime = timestamp;
+
+    const elapsed  = timestamp - startTime;
+    const progress = Math.min((elapsed / SLIDE_DURATION) * 100, 100);
+
+    if (progressBar) progressBar.style.width = progress + '%';
+
+    if (elapsed >= SLIDE_DURATION) {
+      activateSlide(current + 1);
+      startTime = null;
+      if (progressBar) progressBar.style.transition = 'none';
+      if (progressBar) progressBar.style.width = '0%';
+      // Force reflow so transition reset takes effect
+      void progressBar?.offsetWidth;
+    }
+
+    rafId = requestAnimationFrame(tick);
+  }
+
+  // ── Public navigation ───────────────────────────────────────
+  window.goToSlide = function (n) {
+    activateSlide(n);
+    startTime = null;
+    if (progressBar) { progressBar.style.transition = 'none'; progressBar.style.width = '0%'; }
+  };
+
+  window.nextSlide = function () { window.goToSlide(current + 1); };
+  window.prevSlide = function () { window.goToSlide(current - 1); };
+
+  // ── Auto-play: only if multiple slides ─────────────────────
+  if (slides.length > 1) {
+    rafId = requestAnimationFrame(tick);
+
+    // Pause on hover
+    const carousel = document.getElementById('heroCarousel');
+    if (carousel) {
+      carousel.addEventListener('mouseenter', () => { paused = true; });
+      carousel.addEventListener('mouseleave', () => { paused = false; });
+      // Pause on touch (mobile)
+      carousel.addEventListener('touchstart', () => { paused = true; }, { passive: true });
+      carousel.addEventListener('touchend',   () => { paused = false; }, { passive: true });
+    }
+
+    // Keyboard navigation
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowLeft')  window.prevSlide();
+      if (e.key === 'ArrowRight') window.nextSlide();
+    });
+  }
+
+  // ── Swipe support (mobile) ──────────────────────────────────
+  let touchStartX = 0;
+  const carousel = document.getElementById('heroCarousel');
+  if (carousel) {
+    carousel.addEventListener('touchstart', (e) => {
+      touchStartX = e.changedTouches[0].screenX;
+    }, { passive: true });
+    carousel.addEventListener('touchend', (e) => {
+      const diff = touchStartX - e.changedTouches[0].screenX;
+      if (Math.abs(diff) > 50) {
+        diff > 0 ? window.nextSlide() : window.prevSlide();
+      }
+    }, { passive: true });
+  }
+
+})();
+</script>

@@ -1,0 +1,377 @@
+<header class="sticky top-0 z-50 bg-white/95 dark:bg-[#0f0f1a]/95 backdrop-blur-md shadow-sm border-b border-gray-200 dark:border-gray-800 transition-colors duration-300">
+  <!-- Top Bar (desktop only) -->
+  <div class="bg-primary dark:bg-[#070710] text-white text-xs py-1.5 text-center hidden md:block">
+    <span class="text-accent-400">
+      <i class="fa-solid fa-futbol mr-1"></i>
+      Free shipping on orders above ₹<%= commerceSettings.freeShippingThreshold %>
+    </span>
+  </div>
+
+  <!-- Main Nav -->
+  <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+    <div class="flex items-center justify-between h-14 md:h-16 gap-2">
+
+    <!-- Logo -->
+    <a href="/" class="flex items-center gap-2 group flex-shrink-0">
+      <div class="w-8 h-8 md:w-9 md:h-9 rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform overflow-hidden">
+        <img src="<%= brand.logoUrl %>" alt="<%= brand.logoAlt %>" class="w-full h-full object-contain"/>
+      </div>
+      
+      <!-- This section shows on small screens and up (where tagline makes sense) -->
+      <div class="hidden sm:block">
+        <span class="font-black text-lg md:text-xl text-primary dark:text-white tracking-tight">AD21</span><span class="font-black text-lg md:text-xl text-accent-500">Store</span>
+        <div class="text-xs text-gray-500 dark:text-gray-400 -mt-1 hidden md:block"><%= brand.tagline %></div>
+      </div>
+      
+      <!-- This section shows only on absolute mobile views (< 640px) -->
+      <div class="block sm:hidden">
+        <span class="font-black text-lg text-primary dark:text-white tracking-tight">AD21</span><span class="font-black text-lg text-accent-500">Store</span>
+        <div class="text-[10px] text-gray-500 dark:text-gray-400 -mt-1"><%= brand.tagline %></div>
+      </div>
+    </a>
+
+      <!-- Search Bar (Desktop) -->
+      <div class="flex-1 max-w-xl mx-4 md:mx-8 hidden md:block relative" id="searchWrapper">
+        <form action="/shop" method="GET" id="desktopSearchForm">
+          <div class="flex items-center bg-gray-100 dark:bg-gray-800 rounded-full px-4 py-2.5 focus-within:ring-2 focus-within:ring-accent-500 transition-all">
+            <i class="fa-solid fa-search text-gray-400 mr-3 text-sm"></i>
+            <input type="text" name="search" id="searchInput" value="<%= typeof filters !== 'undefined' && filters.search ? filters.search : '' %>"
+              placeholder="Search jerseys, balls, boots..."
+              class="flex-1 bg-transparent border-none outline-none text-sm text-gray-700 dark:text-gray-200 placeholder-gray-400"
+              autocomplete="off"/>
+            <button type="submit" class="hidden"></button>
+          </div>
+        </form>
+        <!-- Autocomplete Dropdown -->
+        <div id="searchDropdown" class="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 hidden z-50 overflow-hidden">
+          <!-- Saved searches section (shown when input is empty/focused) -->
+          <div id="savedSearchesSection" class="hidden">
+            <div class="px-3 pt-2 pb-1 flex items-center justify-between">
+              <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Recent Searches</span>
+              <button onclick="clearSavedSearches()" class="text-xs text-accent-500 hover:text-accent-600">Clear</button>
+            </div>
+            <div id="savedSearchesList"></div>
+          </div>
+          <div id="searchResults" class="max-h-80 overflow-y-auto"></div>
+        </div>
+      </div>
+
+      <!-- Nav Icons (desktop: full set; mobile: minimal — rest moved to bottom nav) -->
+      <div class="flex items-center gap-0.5 md:gap-1">
+
+        <!-- Mobile Search toggle -->
+        <button onclick="toggleMobileSearch()" class="md:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" aria-label="Search">
+          <i class="fa-solid fa-search text-gray-600 dark:text-gray-300 text-sm"></i>
+        </button>
+
+        <!-- Theme Toggle -->
+        <button id="themeToggleBtn" class="p-2 md:p-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" title="Toggle theme" aria-label="Toggle theme">
+          <i id="themeIcon" class="fa-solid <%= theme === 'dark' ? 'fa-sun text-yellow-400' : 'fa-moon text-gray-600 dark:text-gray-300' %> text-sm"></i>
+        </button>
+
+        <% if (typeof currentUser !== 'undefined' && currentUser) { %>
+        <!-- Wishlist (desktop only — in bottom nav on mobile) -->
+        <a href="/wishlist" class="relative p-2 md:p-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors hidden md:flex">
+          <i class="fa-regular fa-heart text-gray-600 dark:text-gray-300"></i>
+          <% if (wishlistCount > 0) { %>
+            <span class="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold" id="wishlistCount"><%= wishlistCount %></span>
+          <% } else { %>
+            <span class="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-xs rounded-full items-center justify-center font-bold hidden" id="wishlistCount">0</span>
+          <% } %>
+        </a>
+        <% } %>
+
+        <!-- Cart (desktop only — mobile has it in the bottom nav). Available to
+             guests too: guest carts are session-backed, so browsing/adding to
+             cart never requires an account — only checkout does. -->
+        <a href="/cart" class="relative p-2 md:p-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors hidden md:flex">
+          <i class="fa-solid fa-bag-shopping text-gray-600 dark:text-gray-300"></i>
+          <span class="absolute -top-0.5 -right-0.5 w-4 h-4 bg-accent-500 text-white text-xs rounded-full flex items-center justify-center font-bold" id="cartCount"><%= cartCount || 0 %></span>
+        </a>
+
+        <% if (typeof currentUser !== 'undefined' && currentUser) { %>
+        <!-- Notifications -->
+        <div class="relative" id="notifWrapper">
+          <button onclick="toggleNotifications()" class="relative p-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" aria-label="Notifications">
+            <i class="fa-regular fa-bell text-gray-600 dark:text-gray-300"></i>
+            <% if (unreadNotifications > 0) { %>
+              <span class="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold"><%= unreadNotifications %></span>
+            <% } %>
+          </button>
+          <div id="notifDropdown" class="hidden absolute right-0 top-12 w-80 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 z-50">
+            <div class="p-3 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+              <span class="font-semibold text-sm">Notifications</span>
+              <button onclick="markAllRead()" class="text-xs text-accent-500 hover:text-accent-600">Mark all read</button>
+            </div>
+            <div id="notifList" class="max-h-72 overflow-y-auto p-2"><div class="text-center text-gray-400 text-sm py-4">Loading...</div></div>
+          </div>
+        </div>
+
+        <!-- User Menu (desktop) -->
+        <div class="relative hidden md:block" id="userMenuWrapper">
+          <button onclick="document.getElementById('userMenu').classList.toggle('hidden')" class="flex items-center gap-2 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+            <% if (currentUser.avatar) { %>
+              <img src="<%= currentUser.avatar %>" alt="Avatar" class="w-8 h-8 rounded-full object-cover border-2 border-accent-500"/>
+            <% } else { %>
+              <div class="w-8 h-8 rounded-full bg-gradient-to-br from-accent-500 to-accent-600 flex items-center justify-center text-white font-bold text-sm">
+                <%= currentUser.name.charAt(0).toUpperCase() %>
+              </div>
+            <% } %>
+            <span class="text-sm font-medium dark:text-gray-200 max-w-20 truncate"><%= currentUser.name.split(' ')[0] %></span>
+            <i class="fa-solid fa-chevron-down text-xs text-gray-400"></i>
+          </button>
+          <div id="userMenu" class="hidden absolute right-0 top-12 w-52 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 z-50 overflow-hidden">
+            <div class="p-3 border-b border-gray-100 dark:border-gray-700">
+              <p class="font-semibold text-sm dark:text-white"><%= currentUser.name %></p>
+              <p class="text-xs text-gray-500 dark:text-gray-400 truncate"><%= currentUser.email %></p>
+            </div>
+            <div class="p-1">
+              <a href="/dashboard" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-sm transition-colors"><i class="fa-solid fa-chart-line w-4 text-accent-500"></i>Dashboard</a>
+              <a href="/profile" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-sm transition-colors"><i class="fa-solid fa-user w-4 text-accent-500"></i>Profile</a>
+              <a href="/orders" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-sm transition-colors"><i class="fa-solid fa-box w-4 text-accent-500"></i>My Orders</a>
+              <a href="/wishlist" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-sm transition-colors"><i class="fa-regular fa-heart w-4 text-accent-500"></i>Wishlist</a>
+              <a href="/wallet" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-sm transition-colors"><i class="fa-solid fa-wallet w-4 text-accent-500"></i>Wallet ₹<%= currentUser.walletBalance || 0 %></a>
+              <a href="/referral" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-sm transition-colors"><i class="fa-solid fa-gift w-4 text-accent-500"></i>Referral</a>
+              <% if (currentUser.role === 'admin' || currentUser.role === 'staff') { %>
+                <a href="/admin/dashboard" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-sm transition-colors"><i class="fa-solid fa-shield-halved w-4 text-purple-500"></i>Admin Panel</a>
+              <% } %>
+              <div class="border-t border-gray-100 dark:border-gray-700 mt-1 pt-1">
+                <a href="/auth/logout" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-sm text-red-500 transition-colors"><i class="fa-solid fa-right-from-bracket w-4"></i>Logout</a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <% } else { %>
+        <!-- Guest: Login button -->
+        <a href="/auth/login" class="btn-primary px-3 py-1.5 md:px-4 md:py-2 rounded-lg text-xs md:text-sm font-semibold">Login</a>
+        <a href="/auth/register" class="hidden md:inline-flex px-4 py-2 border border-accent-500 text-accent-500 rounded-lg text-sm font-semibold hover:bg-accent-500 hover:text-white transition-colors">Register</a>
+        <% } %>
+      </div>
+    </div>
+
+    <!-- Category Nav (desktop) -->
+    <nav class="hidden md:flex items-center gap-6 pb-3 text-sm font-medium overflow-x-auto">
+      <a href="/shop" class="nav-link text-gray-600 dark:text-gray-300 hover:text-accent-500 transition-colors whitespace-nowrap pb-2 <%= currentPath === '/shop' ? 'active' : '' %>">All Products</a>
+      <% if (typeof navCategories !== 'undefined') { navCategories.forEach(cat => { %>
+        <a href="/shop?category=<%= cat.slug %>" class="nav-link text-gray-600 dark:text-gray-300 hover:text-accent-500 transition-colors whitespace-nowrap pb-2"><%= cat.name %></a>
+      <% }) } %>
+      <a href="/shop?offer=true" class="nav-link text-red-500 font-semibold hover:text-red-600 transition-colors whitespace-nowrap pb-2 flex items-center gap-1"><i class="fa-solid fa-fire text-xs"></i>Sale</a>
+      <a href="/shop?filter=new" class="nav-link text-green-500 font-semibold hover:text-green-600 transition-colors whitespace-nowrap pb-2">New Arrivals</a>
+    </nav>
+  </div>
+
+  <!-- Mobile Search Bar (collapsible) -->
+  <div id="mobileSearchBar" class="hidden md:hidden px-3 pb-3">
+    <form action="/shop" method="GET" id="mobileSearchForm">
+      <div class="flex items-center bg-gray-100 dark:bg-gray-800 rounded-full px-4 py-2.5 focus-within:ring-2 focus-within:ring-accent-500 transition-all relative" id="mobileSearchWrapper">
+        <i class="fa-solid fa-search text-gray-400 mr-3 text-sm flex-shrink-0"></i>
+        <input type="text" name="search" id="mobileSearchInput" placeholder="Search jerseys, balls, boots..."
+          class="flex-1 bg-transparent border-none outline-none text-sm text-gray-700 dark:text-gray-200 placeholder-gray-400"
+          autocomplete="off"/>
+        <button type="button" onclick="toggleMobileSearch()" class="ml-2 text-gray-400 hover:text-gray-600 flex-shrink-0">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+    </form>
+    <!-- Mobile Search Dropdown -->
+    <div id="mobileSearchDropdown" class="mt-2 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 hidden overflow-hidden">
+      <div id="mobileSavedSearchesSection" class="hidden">
+        <div class="px-3 pt-2 pb-1 flex items-center justify-between">
+          <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Recent Searches</span>
+          <button onclick="clearSavedSearches()" class="text-xs text-accent-500">Clear</button>
+        </div>
+        <div id="mobileSavedSearchesList"></div>
+      </div>
+      <div id="mobileSearchResults" class="max-h-72 overflow-y-auto"></div>
+    </div>
+  </div>
+</header>
+
+<script>
+// ── Close dropdowns on outside click ──────────────────────────
+document.addEventListener('click', (e) => {
+  if (!document.getElementById('userMenuWrapper')?.contains(e.target)) document.getElementById('userMenu')?.classList.add('hidden');
+  if (!document.getElementById('notifWrapper')?.contains(e.target)) document.getElementById('notifDropdown')?.classList.add('hidden');
+  if (!document.getElementById('searchWrapper')?.contains(e.target)) document.getElementById('searchDropdown')?.classList.add('hidden');
+  if (!document.getElementById('mobileSearchBar')?.contains(e.target) && !e.target.closest('[onclick="toggleMobileSearch()"]')) {
+    // keep mobile search open if user is typing
+  }
+});
+
+// ── Mobile search toggle ───────────────────────────────────────
+function toggleMobileSearch() {
+  const bar = document.getElementById('mobileSearchBar');
+  bar.classList.toggle('hidden');
+  if (!bar.classList.contains('hidden')) {
+    setTimeout(() => document.getElementById('mobileSearchInput')?.focus(), 100);
+    renderSavedSearches('mobile');
+  }
+}
+
+// ── Saved Searches ─────────────────────────────────────────────
+function getSavedSearches() {
+  try { return JSON.parse(localStorage.getItem('ad21_saved_searches') || '[]'); } catch { return []; }
+}
+function saveSearch(q) {
+  if (!q || q.length < 2) return;
+  let searches = getSavedSearches().filter(s => s !== q);
+  searches.unshift(q);
+  searches = searches.slice(0, 8);
+  localStorage.setItem('ad21_saved_searches', JSON.stringify(searches));
+}
+function clearSavedSearches() {
+  localStorage.removeItem('ad21_saved_searches');
+  document.getElementById('savedSearchesSection')?.classList.add('hidden');
+  document.getElementById('mobileSavedSearchesSection')?.classList.add('hidden');
+}
+async function renderSavedSearches(mode = 'desktop') {
+  const prefix = mode === 'mobile' ? 'mobile' : '';
+  const section = document.getElementById(prefix ? 'mobileSavedSearchesSection' : 'savedSearchesSection');
+  const list = document.getElementById(prefix ? 'mobileSavedSearchesList' : 'savedSearchesList');
+  const dropdown = document.getElementById(prefix ? 'mobileSearchDropdown' : 'searchDropdown');
+  if (!section || !list) return;
+
+  // Merge localStorage + DB saved searches (DB takes priority for logged-in users)
+  let searches = getSavedSearches();
+  <% if (typeof currentUser !== 'undefined' && currentUser) { %>
+  try {
+    const r = await fetch('/search/saved');
+    const data = await r.json();
+    if (data.searches && data.searches.length) {
+      // Merge: DB first, then localStorage unique ones
+      const merged = [...new Set([...data.searches, ...searches])].slice(0, 8);
+      // Also update localStorage with DB searches
+      localStorage.setItem('ad21_saved_searches', JSON.stringify(merged));
+      searches = merged;
+    }
+  } catch (_) {}
+  <% } %>
+
+  if (!searches.length) { section.classList.add('hidden'); return; }
+  section.classList.remove('hidden');
+  dropdown?.classList.remove('hidden');
+  list.innerHTML = searches.map(s => `
+    <a href="/shop?search=${encodeURIComponent(s)}" class="flex items-center gap-3 px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+      <i class="fa-solid fa-clock-rotate-left text-gray-400 text-xs w-4"></i>
+      <span class="text-sm text-gray-700 dark:text-gray-300">${s}</span>
+    </a>`).join('');
+}
+
+// ── Desktop Search autocomplete ────────────────────────────────
+let searchTimer;
+function setupSearchAutocomplete(inputId, dropdownId, resultsId, savedSectionId) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  input.addEventListener('focus', () => renderSavedSearches(inputId.includes('mobile') ? 'mobile' : 'desktop'));
+  input.addEventListener('input', (e) => {
+    clearTimeout(searchTimer);
+    const q = e.target.value.trim();
+    const dropdown = document.getElementById(dropdownId);
+    const results = document.getElementById(resultsId);
+    if (!q || q.length < 2) {
+      if (results) results.innerHTML = '';
+      renderSavedSearches(inputId.includes('mobile') ? 'mobile' : 'desktop');
+      return;
+    }
+    document.getElementById(savedSectionId)?.classList.add('hidden');
+    searchTimer = setTimeout(async () => {
+      const r = await fetch(`/search/autocomplete?q=${encodeURIComponent(q)}`);
+      const data = await r.json();
+      if (!dropdown || !results) return;
+      if (!data.results.length && !data.categories.length) { dropdown.classList.add('hidden'); return; }
+      results.innerHTML = '';
+      if (data.categories.length) {
+        results.innerHTML += `<div class="px-3 pt-2 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">Categories</div>`;
+        data.categories.forEach(c => { results.innerHTML += `<a href="/shop?category=${c.slug}" class="flex items-center gap-3 px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"><i class="fa-solid fa-tag text-accent-500 text-xs w-4"></i><span class="text-sm">${c.name}</span></a>`; });
+      }
+      if (data.results.length) {
+        results.innerHTML += `<div class="px-3 pt-2 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">Products</div>`;
+        data.results.forEach(p => {
+          let img = p.images?.[0]?.url || '/images/placeholder.png';
+          if (p.variantType === 'color' || p.variantType === 'color_size') {
+            const fc = (p.colorVariants || []).find(cv => cv.isActive && cv.images?.length);
+            if (fc) img = fc.images[0].url;
+          }
+          results.innerHTML += `<a href="/products/${p.slug}" class="flex items-center gap-3 px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+            <img src="${img}" class="w-10 h-10 rounded-lg object-cover flex-shrink-0" alt="${p.name}"/>
+            <div class="min-w-0 flex-1"><p class="text-sm font-medium dark:text-white truncate">${p.name}</p><p class="text-xs text-accent-500 font-semibold">₹${p.basePrice}</p></div>
+          </a>`;
+        });
+      }
+      results.innerHTML += `<a href="/shop?search=${encodeURIComponent(q)}" onclick="saveSearch('${q.replace(/'/g,"\\'")}'); return true;" class="flex items-center gap-2 px-3 py-2 bg-gray-50 dark:bg-gray-700/50 text-accent-500 text-sm font-medium border-t border-gray-100 dark:border-gray-700"><i class="fa-solid fa-search"></i>See all results for "${q}"</a>`;
+      dropdown.classList.remove('hidden');
+    }, 300);
+  });
+  // Save search on form submit
+  input.closest('form')?.addEventListener('submit', () => saveSearch(input.value.trim()));
+}
+
+setupSearchAutocomplete('searchInput', 'searchDropdown', 'searchResults', 'savedSearchesSection');
+setupSearchAutocomplete('mobileSearchInput', 'mobileSearchDropdown', 'mobileSearchResults', 'mobileSavedSearchesSection');
+
+// ── Notifications ──────────────────────────────────────────────
+function updateNotifBadge(count) {
+  const btn = document.querySelector('#notifWrapper button[onclick="toggleNotifications()"]');
+  if (!btn) return;
+  let badge = btn.querySelector('.notif-badge');
+  if (count > 0) {
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.className = 'notif-badge absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold';
+      btn.appendChild(badge);
+    }
+    badge.textContent = count > 99 ? '99+' : count;
+  } else {
+    badge?.remove();
+  }
+}
+
+async function toggleNotifications() {
+  const dropdown = document.getElementById('notifDropdown');
+  dropdown.classList.toggle('hidden');
+  if (!dropdown.classList.contains('hidden')) {
+    await loadNotifications();
+  }
+}
+
+async function loadNotifications() {
+  const list = document.getElementById('notifList');
+  try {
+    const r = await fetch('/notifications');
+    const data = await r.json();
+    updateNotifBadge(data.unreadCount || 0);
+    if (!data.notifications.length) {
+      list.innerHTML = '<div class="text-center text-gray-400 text-sm py-6"><i class="fa-regular fa-bell text-2xl mb-2 block"></i>No notifications</div>';
+      return;
+    }
+    // Notifications are already sorted newest-first from the server
+    list.innerHTML = data.notifications.map(n => `
+      <a href="${n.link||'#'}" class="flex items-start gap-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${n.isRead ? '' : 'bg-accent-50 dark:bg-accent-900/10'}">
+        <div class="w-8 h-8 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mt-0.5 flex-shrink-0">
+          <i class="fa-solid fa-bell text-accent-500 text-xs"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-xs dark:text-gray-200">${n.message}</p>
+          <p class="text-xs text-gray-400 mt-0.5">${new Date(n.createdAt).toLocaleDateString('en-IN', {day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</p>
+        </div>
+        ${!n.isRead ? '<span class="w-2 h-2 rounded-full bg-accent-500 flex-shrink-0 mt-1.5"></span>' : ''}
+      </a>`).join('');
+  } catch (e) {
+    list.innerHTML = '<div class="text-center text-gray-400 text-sm py-4">Failed to load</div>';
+  }
+}
+
+async function markAllRead() {
+  const r = await fetch('/notifications/read', { method: 'POST' });
+  const data = await r.json();
+  if (data.success) {
+    updateNotifBadge(0);
+    // Update all unread items in the dropdown to look read
+    document.querySelectorAll('#notifList a.bg-accent-50, #notifList a.dark\\:bg-accent-900\\/10').forEach(el => {
+      el.classList.remove('bg-accent-50', 'dark:bg-accent-900/10');
+      el.querySelector('span.w-2.h-2.rounded-full')?.remove();
+    });
+  }
+}
+</script>

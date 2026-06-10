@@ -1,0 +1,153 @@
+<% if (typeof products !== 'undefined' && products && products.length) { products.forEach(product => {
+  const price = product.discountedPrice || product.basePrice;
+  const hasDiscount = product.discountPercent > 0 || (product.compareAtPrice && product.compareAtPrice > product.basePrice);
+  const discountPct = product.discountPercent || (product.compareAtPrice ? Math.round(((product.compareAtPrice - product.basePrice) / product.compareAtPrice) * 100) : 0);
+  const inWishlist = typeof wishlistProductIds !== 'undefined' && wishlistProductIds.includes(product._id.toString());
+
+  const vt = product.variantType || 'none';
+  const isVariantProduct = vt !== 'none';
+
+  let displayImg = product.images?.[0]?.url || product.thumbnail;
+  if (vt === 'color' || vt === 'color_size') {
+    const firstActiveColor = (product.colorVariants || []).find(cv => cv.isActive && cv.images?.length);
+    if (firstActiveColor) displayImg = firstActiveColor.images[0].url;
+  }
+  displayImg = displayImg || '/images/placeholder.png';
+
+  const activeColors = (vt === 'color' || vt === 'color_size')
+    ? (product.colorVariants || []).filter(cv => cv.isActive)
+    : [];
+
+  let displayPrice, displayCompareAt;
+  if (vt === 'color' || vt === 'color_size') {
+    const firstActiveColor = (product.colorVariants || []).find(cv => cv.isActive && cv.images?.length);
+    const firstVariant = firstActiveColor
+      ? (product.variants || []).find(v => v.isActive && v.colorId?.toString() === firstActiveColor._id.toString())
+      : null;
+    displayPrice = firstVariant?.price ?? price;
+    displayCompareAt = firstVariant?.compareAtPrice ?? null;
+  } else if (vt === 'size') {
+    const firstVariant = (product.variants || []).find(v => v.isActive);
+    displayPrice = firstVariant?.price ?? price;
+    displayCompareAt = firstVariant?.compareAtPrice ?? null;
+  } else {
+    displayPrice = price;
+    displayCompareAt = hasDiscount && product.compareAtPrice ? product.compareAtPrice : null;
+  }
+
+  const showQuickAdd = vt === 'none';
+%>
+
+<div class="product-card group relative bg-white dark:bg-gray-900 rounded-2xl overflow-hidden shadow-sm hover:shadow-xl dark:hover:shadow-accent-500/10 transition-all duration-300 hover:-translate-y-1 border border-gray-100 dark:border-gray-800">
+
+  <!-- Image Wrapper -->
+  <div class="pc-image-wrap relative overflow-hidden bg-gray-100 dark:bg-gray-800 aspect-square flex-shrink-0">
+    <a href="/products/<%= product.slug %>" class="block w-full h-full">
+      <img src="<%= displayImg %>"
+           alt="<%= product.name %>"
+           class="product-image w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"/>
+    </a>
+
+    <!-- Badges -->
+    <div class="absolute top-2 left-2 flex flex-col gap-1">
+      <% if (product.isNewArrival) { %><span class="badge bg-green-500 text-white">New</span><% } %>
+      <% if (product.isFeatured) { %><span class="badge bg-accent-500 text-white">Featured</span><% } %>
+      <% if (discountPct > 0) { %><span class="badge bg-red-500 text-white"><%= discountPct %>% OFF</span><% } %>
+      <% if (product.stockStatus === 'out_of_stock') { %><span class="badge bg-gray-500 text-white">Sold Out</span><% } %>
+      <% if (product.stockStatus === 'low_stock') { %><span class="badge bg-yellow-500 text-white">Low Stock</span><% } %>
+    </div>
+
+    <!-- Wishlist -->
+    <button onclick="toggleWishlist('<%= product._id %>', this)"
+            class="absolute top-2 right-2 w-8 h-8 bg-white dark:bg-gray-800 rounded-full flex items-center justify-center shadow-md hover:scale-110 transition-all <%= inWishlist ? 'text-red-500' : 'text-gray-400 hover:text-red-500' %>">
+      <i class="fa-<%= inWishlist ? 'solid' : 'regular' %> fa-heart text-sm"></i>
+    </button>
+
+    <!-- Quick Add overlay (grid mode only) -->
+    <% if (showQuickAdd) { %>
+    <div class="pc-quick-overlay absolute inset-x-0 bottom-0 translate-y-full group-hover:translate-y-0 transition-transform duration-300 p-3">
+      <% if (product.stockStatus !== 'out_of_stock') { %>
+      <button onclick="addToCart('<%= product._id %>')"
+              class="w-full btn-primary py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 backdrop-blur-sm shadow-lg">
+        <i class="fa-solid fa-bag-shopping text-xs"></i> Quick Add
+      </button>
+      <% } else { %>
+      <div class="w-full bg-gray-200 dark:bg-gray-700 py-2.5 rounded-xl text-sm font-semibold text-center text-gray-500 dark:text-gray-400">Out of Stock</div>
+      <% } %>
+    </div>
+    <% } %>
+  </div>
+
+  <!-- Info -->
+  <div class="pc-info p-3 flex flex-col justify-between flex-1">
+    <div>
+      <p class="text-xs text-gray-400 dark:text-gray-500 mb-1 capitalize"><%= product.brand || '—' %></p>
+      <a href="/products/<%= product.slug %>"
+         class="font-semibold text-gray-900 dark:text-gray-100 text-sm leading-tight line-clamp-2 hover:text-accent-500 transition-colors block mb-2 truncate-for-list ">
+        <%= product.name %>
+      </a>
+
+      <!-- Short description — shown only in list mode -->
+      <% if (product.shortDescription || product.description) { %>
+      <p class="pc-desc hidden text-xs text-gray-500 dark:text-gray-400 line-clamp-2 mb-2">
+        <%= (product.shortDescription || product.description || '').replace(/<[^>]*>/g, '').substring(0, 120) %>
+      </p>
+      <% } %>
+
+      <!-- Rating -->
+      <div class="flex items-center gap-1 mb-2">
+        <div class="flex">
+          <% for(let i = 1; i <= 5; i++) { %>
+            <i class="fa-<%= i <= Math.round(product.avgRating || 0) ? 'solid' : 'regular' %> fa-star text-accent-400" style="font-size:10px"></i>
+          <% } %>
+        </div>
+        <span class="text-xs text-gray-400">(<%= product.reviewCount || 0 %>)</span>
+      </div>
+
+      <!-- Color swatches -->
+      <% if (activeColors.length > 0) { %>
+      <div class="flex items-center gap-1 mb-2">
+        <% activeColors.slice(0, 6).forEach(cv => { %>
+        <span title="<%= cv.color %>"
+              style="background-color: <%= cv.colorHex || cv.color %>;"
+              class="w-4 h-4 rounded-full border border-gray-300 dark:border-gray-600 inline-block flex-shrink-0"></span>
+        <% }) %>
+        <% if (activeColors.length > 6) { %>
+        <span class="text-xs text-gray-400">+<%= activeColors.length - 6 %></span>
+        <% } %>
+      </div>
+      <% } %>
+    </div>
+
+    <!-- Price + list-mode add button -->
+    <div class="flex items-center justify-between gap-2 mt-auto">
+      <div class="flex items-center gap-2">
+        <span class="font-bold text-gray-900 dark:text-white text-base">
+          ₹<%= displayPrice.toLocaleString('en-IN') %>
+        </span>
+        <% if (displayCompareAt && displayCompareAt > displayPrice) { %>
+          <span class="text-xs text-gray-400 line-through">₹<%= displayCompareAt.toLocaleString('en-IN') %></span>
+        <% } %>
+      </div>
+
+      <!-- Inline add-to-cart button for list mode (hidden in grid) -->
+      <% if (showQuickAdd) { %>
+        <% if (product.stockStatus !== 'out_of_stock') { %>
+        <button onclick="addToCart('<%= product._id %>')"
+                class="pc-list-btn hidden items-center gap-1.5 btn-primary px-3 py-1.5 rounded-lg text-xs font-semibold flex-shrink-0">
+          <i class="fa-solid fa-bag-shopping text-xs"></i> Add
+        </button>
+        <% } else { %>
+        <span class="pc-list-btn hidden text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">Out of Stock</span>
+        <% } %>
+      <% } else { %>
+        <a href="/products/<%= product.slug %>"
+           class="pc-list-btn hidden items-center gap-1.5 border border-accent-500 text-accent-500 px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-accent-500 hover:text-white transition-colors flex-shrink-0">
+          View <i class="fa-solid fa-arrow-right text-xs"></i>
+        </a>
+      <% } %>
+    </div>
+  </div>
+
+</div>
+<% }) } %>

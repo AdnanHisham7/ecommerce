@@ -1,0 +1,54 @@
+<section class="bg-gray-50 dark:bg-zinc-900/50 py-12 my-4">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex items-end justify-between mb-8">
+      <div>
+        <span class="inline-flex items-center gap-1.5 text-accent-500 font-semibold text-sm mb-2">
+          <i class="fa-solid fa-layer-group text-xs"></i> Collections
+        </span>
+        <h2 class="text-3xl md:text-4xl font-black dark:text-white tracking-tight">
+          Shop by <span class="text-accent-500">Category</span>
+        </h2>
+        <p class="text-gray-500 dark:text-gray-400 mt-1 text-sm">Find everything for the beautiful game</p>
+      </div>
+      <a href="/shop" class="hidden md:flex items-center gap-1.5 text-accent-500 hover:text-accent-600 font-semibold text-sm transition-colors group">
+        All Products <i class="fa-solid fa-arrow-right text-xs group-hover:translate-x-1 transition-transform"></i>
+      </a>
+    </div>
+
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-5">
+      <% categories.forEach(category => { %>
+      <a
+        href="/shop?category=<%= category.slug %>"
+        class="group relative flex flex-col bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-2xl overflow-hidden shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300"
+      >
+        <div class="relative aspect-square w-full overflow-hidden bg-gray-100 dark:bg-zinc-800">
+          <% if (category.image) { %>
+          <img
+            src="<%= category.image %>"
+            alt="<%= category.name %>"
+            class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+            loading="lazy"
+          />
+          <% } else { %>
+          <div class="w-full h-full bg-gradient-to-br from-accent-500/20 to-amber-700/20 flex items-center justify-center">
+            <i class="fa-solid fa-shirt text-5xl text-accent-500/60"></i>
+          </div>
+          <% } %>
+          <div class="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          <div class="absolute bottom-0 inset-x-0 p-3 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
+            <span class="text-white text-xs font-bold uppercase tracking-wider flex items-center gap-1">
+              Explore <i class="fa-solid fa-arrow-right text-accent-400"></i>
+            </span>
+          </div>
+        </div>
+        <div class="p-4 bg-white dark:bg-zinc-900">
+          <h3 class="font-bold text-gray-900 dark:text-white group-hover:text-accent-500 transition-colors text-sm md:text-base truncate">
+            <%= category.name %>
+          </h3>
+          <p class="text-xs text-gray-400 mt-0.5">Browse collection →</p>
+        </div>
+      </a>
+      <% }) %>
+    </div>
+  </div>
+</section>

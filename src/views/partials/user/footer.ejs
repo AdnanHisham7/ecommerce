@@ -1,0 +1,145 @@
+<footer class="bg-primary dark:bg-[#070710] text-gray-300">
+  <!-- Main Footer -->
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-16">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-10">
+      <!-- Brand -->
+      <div class="lg:col-span-1">
+        <div class="flex items-center gap-2 mb-4">
+          <div class="w-10 h-10 rounded-full flex items-center justify-center overflow-hidden">
+            <img src="<%= brand.logoUrl %>" alt="<%= brand.logoAlt %>" class="w-full h-full object-contain"/>
+          </div>
+          <span class="font-black text-2xl text-white">AD21<span class="text-accent-500">Store</span></span>
+        </div>
+        <p class="text-gray-400 text-sm leading-relaxed mb-5"><%= brand.description %></p>
+
+        <!-- Contact -->
+        <div class="space-y-2 mb-5">
+          <a href="mailto:<%= brand.email %>" class="flex items-center gap-2 text-gray-400 hover:text-accent-400 text-sm transition-colors">
+            <i class="fa-solid fa-envelope text-accent-500 w-4"></i><%= brand.email %>
+          </a>
+          <a href="tel:<%= brand.phone %>" class="flex items-center gap-2 text-gray-400 hover:text-accent-400 text-sm transition-colors">
+            <i class="fa-solid fa-phone text-accent-500 w-4"></i><%= brand.phoneDisplay %>
+          </a>
+        </div>
+
+        <!-- Social links -->
+        <div class="flex gap-3 flex-wrap">
+          <% if (brand.social.instagram) { %>
+          <a href="<%= brand.social.instagram %>" target="_blank" rel="noopener" aria-label="Instagram"
+            class="w-9 h-9 bg-white/5 hover:bg-accent-500 rounded-lg flex items-center justify-center transition-all hover:scale-110">
+            <i class="fa-brands fa-instagram text-sm"></i>
+          </a>
+          <% } %>
+          <% if (brand.social.facebook) { %>
+          <a href="<%= brand.social.facebook %>" target="_blank" rel="noopener" aria-label="Facebook"
+            class="w-9 h-9 bg-white/5 hover:bg-blue-600 rounded-lg flex items-center justify-center transition-all hover:scale-110">
+            <i class="fa-brands fa-facebook text-sm"></i>
+          </a>
+          <% } %>
+          <% if (brand.social.twitter) { %>
+          <a href="<%= brand.social.twitter %>" target="_blank" rel="noopener" aria-label="X / Twitter"
+            class="w-9 h-9 bg-white/5 hover:bg-sky-500 rounded-lg flex items-center justify-center transition-all hover:scale-110">
+            <i class="fa-brands fa-x-twitter text-sm"></i>
+          </a>
+          <% } %>
+          <% if (brand.social.youtube) { %>
+          <a href="<%= brand.social.youtube %>" target="_blank" rel="noopener" aria-label="YouTube"
+            class="w-9 h-9 bg-white/5 hover:bg-red-600 rounded-lg flex items-center justify-center transition-all hover:scale-110">
+            <i class="fa-brands fa-youtube text-sm"></i>
+          </a>
+          <% } %>
+          <% if (brand.social.whatsapp) { %>
+          <a href="https://wa.me/<%= brand.social.whatsapp %>" target="_blank" rel="noopener" aria-label="WhatsApp"
+            class="w-9 h-9 bg-white/5 hover:bg-green-500 rounded-lg flex items-center justify-center transition-all hover:scale-110">
+            <i class="fa-brands fa-whatsapp text-sm"></i>
+          </a>
+          <% } %>
+        </div>
+      </div>
+
+      <!-- Quick Links -->
+      <div class="hidden md:block">
+        <h4 class="text-white font-bold mb-5 text-sm uppercase tracking-widest">Quick Links</h4>
+        <ul class="space-y-2.5">
+          <li><a href="/" class="text-gray-400 hover:text-accent-400 text-sm transition-colors hover:translate-x-1 inline-block">Home</a></li>
+          <li><a href="/shop" class="text-gray-400 hover:text-accent-400 text-sm transition-colors hover:translate-x-1 inline-block">Shop All</a></li>
+          <% if (typeof navCategories !== 'undefined') { navCategories.forEach(cat => { %>
+            <li><a href="/shop?category=<%= cat.slug %>" class="text-gray-400 hover:text-accent-400 text-sm transition-colors hover:translate-x-1 inline-block"><%= cat.name %></a></li>
+          <% }) } %>
+          
+        </ul>
+      </div>
+
+     <!-- Customer -->
+    <div>
+      <h4 class="text-white font-bold mb-5 text-sm uppercase tracking-widest">Customer</h4>
+      <ul class="space-y-2.5">
+        <li>
+          <a href="/orders" class="text-gray-400 hover:text-accent-400 text-sm transition-colors hover:translate-x-1 inline-block">
+            My Orders
+          </a>
+        </li>
+        <li>
+          <a href="/profile/addresses" class="text-gray-400 hover:text-accent-400 text-sm transition-colors hover:translate-x-1 inline-block">
+            Shipping Info
+          </a>
+        </li>
+        <li>
+          <a href="#" class="text-gray-400 hover:text-accent-400 text-sm transition-colors hover:translate-x-1 inline-block">
+            Returns & Refunds
+          </a>
+        </li>
+        <li>
+          <a href="mailto:ad21sportsstore@gmail.com" class="text-gray-400 hover:text-accent-400 text-sm transition-colors hover:translate-x-1 inline-block">
+            Contact Us
+          </a>
+        </li>
+      </ul>
+    </div>
+
+      <!-- Newsletter -->
+      <div class="hidden md:block">
+        <h4 class="text-white font-bold mb-5 text-sm uppercase tracking-widest">Newsletter</h4>
+        <p class="text-gray-400 text-sm mb-4">Get exclusive deals and football news delivered to your inbox.</p>
+        <form class="space-y-2" onsubmit="subscribeNewsletter(event)">
+          <input type="email" placeholder="Your email address" required
+            class="w-full bg-white/5 border border-white/10 text-white placeholder-gray-500 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-accent-500 transition-colors"/>
+          <button type="submit" class="w-full btn-primary py-2.5 rounded-lg text-sm font-semibold">Subscribe</button>
+        </form>
+        <!-- Trust badges -->
+        <div class="mt-6 grid grid-cols-2 gap-2">
+          <div class="bg-white/5 rounded-lg p-2 text-center"><i class="fa-solid fa-shield-halved text-accent-500 text-lg mb-1 block"></i><span class="text-xs text-gray-400">Secure Payments</span></div>
+          <div class="bg-white/5 rounded-lg p-2 text-center"><i class="fa-solid fa-truck text-accent-500 text-lg mb-1 block"></i><span class="text-xs text-gray-400">Fast Delivery</span></div>
+          <div class="bg-white/5 rounded-lg p-2 text-center"><i class="fa-solid fa-rotate-left text-accent-500 text-lg mb-1 block"></i><span class="text-xs text-gray-400">Easy Returns</span></div>
+          <div class="bg-white/5 rounded-lg p-2 text-center"><i class="fa-solid fa-headset text-accent-500 text-lg mb-1 block"></i><span class="text-xs text-gray-400">24/7 Support</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Payment Methods / Bottom bar -->
+  <div class="border-t border-white/5">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
+      <p class="text-gray-500 text-xs sm:text-sm">© <%= new Date().getFullYear() %> <%= brand.name %>. All rights reserved.</p>
+      <div class="hidden sm:flex items-center gap-3">
+        <span class="text-gray-500 text-xs">We accept:</span>
+        <div class="flex gap-2">
+          <div class="bg-white rounded px-2 py-1 text-xs text-gray-300 flex items-center gap-1">
+            <img src="/images/icons/razorpay-icon.svg" class="h-3 w-auto" alt="Razorpay"/>
+          </div>
+          <div class="bg-white/10 rounded px-2 py-1 text-xs text-gray-300">Cash</div>
+          <div class="bg-white/10 rounded px-2 py-1 text-xs text-gray-300">Wallet</div>
+        </div>
+      </div>
+      <div class="hidden sm:flex gap-4 text-xs text-gray-500">
+        <a href="<%= brand.legal.privacyPolicy %>" class="hover:text-gray-300">Privacy Policy</a>
+        <a href="<%= brand.legal.termsOfService %>" class="hover:text-gray-300">Terms of Service</a>
+        <a href="<%= brand.legal.cookiePolicy %>" class="hover:text-gray-300">Cookie Policy</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+function subscribeNewsletter(e) { e.preventDefault(); showToast('Thanks for subscribing! 🎉', 'success'); e.target.reset(); }
+</script>

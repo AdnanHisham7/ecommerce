@@ -1,0 +1,87 @@
+<% if (banners && banners.length) { %>
+<section class="hero-section relative overflow-hidden bg-primary min-h-[380px] sm:min-h-[480px] md:min-h-[580px] flex items-center">
+  <div class="carousel relative w-full min-h-[520px] md:min-h-[640px]" id="heroCarousel">
+    <% banners.forEach((banner, i) => { %>
+    <div
+      class="carousel-slide absolute inset-0 transition-all duration-700 ease-in-out <%= i === 0 ? 'opacity-100 z-10 pointer-events-auto' : 'opacity-0 z-0 pointer-events-none' %>"
+      aria-hidden="<%= i === 0 ? 'false' : 'true' %>"
+    >
+      <img
+        src="<%= banner.image %>"
+        alt="<%= banner.title %>"
+        class="w-full h-full object-cover absolute inset-0"
+        loading="<%= i === 0 ? 'eager' : 'lazy' %>"
+      />
+      <div class="absolute inset-0 bg-gradient-to-r from-black/80 via-black/50 to-black/10"></div>
+      <div class="absolute inset-0 flex items-center">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
+          <div class="max-w-2xl carousel-content">
+            <% if (banner.badge) { %>
+            <div class="hero-badge inline-flex items-center gap-2 bg-accent-500/20 border border-accent-500/40 text-accent-400 rounded-full px-4 py-1.5 text-sm font-semibold mb-5">
+              <span class="w-2 h-2 rounded-full bg-accent-500 animate-pulse"></span>
+              <%= banner.badge %>
+            </div>
+            <% } %>
+            <h1 class="text-2xl sm:text-4xl md:text-6xl font-black text-white leading-tight mb-3 md:mb-4 tracking-tight">
+              <%= banner.title %>
+            </h1>
+            <p class="text-gray-200 text-sm md:text-xl mb-4 md:mb-8 leading-relaxed"><%= banner.subtitle %></p>
+            <div class="flex flex-wrap gap-3 mb-6">
+              <a href="<%= banner.link || '/shop?sort=popular' %>" class="btn-primary inline-flex items-center gap-3 px-5 py-3 md:px-8 md:py-4 rounded-xl text-sm md:text-base font-bold shadow-2xl">
+                <%= banner.ctaText || 'Shop Best Sellers' %>
+                <i class="fa-solid fa-arrow-right text-sm"></i>
+              </a>
+              <a href="/shop?filter=new" class="inline-flex items-center gap-3 px-6 py-4 rounded-xl text-base font-semibold border-2 border-white/30 text-white hover:border-accent-500 hover:text-accent-400 transition-all">
+                New Arrivals
+              </a>
+            </div>
+            <!-- Trust micro-copy -->
+            <p class="text-gray-400 text-xs md:text-sm flex items-center gap-2 md:gap-4 flex-wrap">
+              <span class="flex items-center gap-1.5"><i class="fa-solid fa-shield-halved text-accent-500"></i> Secure checkout</span>
+              <span class="flex items-center gap-1.5"><i class="fa-solid fa-rotate-left text-accent-500"></i> Easy returns</span>
+              <span class="flex items-center gap-1.5"><i class="fa-solid fa-truck text-accent-500"></i> Free delivery ₹<%= commerceSettings.freeShippingThreshold %>+</span>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <% }) %>
+
+    <!-- Progress Dots -->
+    <div class="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 z-20" role="tablist" aria-label="Carousel navigation">
+      <% banners.forEach((_, i) => { %>
+      <button
+        onclick="goToSlide(<%= i %>)"
+        role="tab"
+        aria-selected="<%= i === 0 ? 'true' : 'false' %>"
+        aria-label="Slide <%= i + 1 %>"
+        class="carousel-dot h-2 rounded-full transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-accent-500 <%= i === 0 ? 'bg-accent-500 w-8' : 'bg-white/40 w-2.5 hover:bg-white/60' %>"
+      ></button>
+      <% }) %>
+    </div>
+
+    <!-- Arrow Controls -->
+    <button
+      onclick="prevSlide()"
+      aria-label="Previous slide"
+      class="absolute left-4 top-1/2 -translate-y-1/2 z-20 w-11 h-11 bg-white/10 hover:bg-white/25 rounded-full flex items-center justify-center text-white backdrop-blur-sm transition-all border border-white/20 hover:border-white/40"
+    >
+      <i class="fa-solid fa-chevron-left text-sm"></i>
+    </button>
+    <button
+      onclick="nextSlide()"
+      aria-label="Next slide"
+      class="absolute right-4 top-1/2 -translate-y-1/2 z-20 w-11 h-11 bg-white/10 hover:bg-white/25 rounded-full flex items-center justify-center text-white backdrop-blur-sm transition-all border border-white/20 hover:border-white/40"
+    >
+      <i class="fa-solid fa-chevron-right text-sm"></i>
+    </button>
+
+    <!-- Auto-play progress bar -->
+    <div class="absolute bottom-0 left-0 right-0 h-0.5 bg-white/10 z-20">
+      <div id="carouselProgress" class="h-full bg-accent-500 transition-none" style="width: 0%"></div>
+    </div>
+  </div>
+
+ 
+  <% } %>
+</section>

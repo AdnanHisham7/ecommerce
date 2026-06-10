@@ -1,0 +1,75 @@
+<section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
+  <div class="text-center mb-10">
+    <span class="inline-flex items-center gap-1.5 text-accent-500 font-semibold text-sm mb-3">
+      <i class="fa-solid fa-quote-left text-xs"></i> Real Reviews
+    </span>
+    <h2 class="text-3xl md:text-4xl font-black dark:text-white tracking-tight mb-2">
+      Loved by <span class="text-accent-500">10,000+ Fans</span>
+    </h2>
+    <div class="flex items-center justify-center gap-2 mt-3">
+      <div class="flex">
+        <% for(let i = 0; i < 5; i++) { %>
+        <i class="fa-solid fa-star text-accent-500" style="font-size:18px"></i>
+        <% } %>
+      </div>
+      <span class="text-gray-600 dark:text-gray-300 font-bold">4.8</span>
+      <span class="text-gray-400 text-sm">/ 5 · Based on 2,400+ reviews</span>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+    <!-- Review 1 -->
+    <div class="review-card bg-white dark:bg-zinc-900 rounded-2xl p-6 border border-gray-100 dark:border-zinc-800 shadow-sm hover:shadow-md transition-shadow">
+      <div class="flex gap-1 mb-3">
+        <% for(let i = 0; i < 5; i++) { %><i class="fa-solid fa-star text-accent-500 text-sm"></i><% } %>
+      </div>
+      <p class="text-gray-700 dark:text-gray-300 text-sm leading-relaxed mb-4">
+        "Got my Mbappe jersey in 2 days! The quality is incredible — the fabric feels exactly like the real deal. Will definitely be ordering again before the season starts."
+      </p>
+      <div class="flex items-center gap-3 pt-4 border-t border-gray-100 dark:border-zinc-800">
+        <div class="w-9 h-9 rounded-full bg-gradient-to-br from-accent-500 to-amber-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">R</div>
+        <div>
+          <p class="font-semibold text-gray-900 dark:text-white text-sm">Rahul M.</p>
+          <p class="text-gray-400 text-xs">Verified Buyer · Mumbai</p>
+        </div>
+        <i class="fa-solid fa-circle-check text-emerald-500 ml-auto text-lg" title="Verified Purchase"></i>
+      </div>
+    </div>
+
+    <!-- Review 2 -->
+    <div class="review-card bg-white dark:bg-zinc-900 rounded-2xl p-6 border border-gray-100 dark:border-zinc-800 shadow-sm hover:shadow-md transition-shadow">
+      <div class="flex gap-1 mb-3">
+        <% for(let i = 0; i < 5; i++) { %><i class="fa-solid fa-star text-accent-500 text-sm"></i><% } %>
+      </div>
+      <p class="text-gray-700 dark:text-gray-300 text-sm leading-relaxed mb-4">
+        "Best football store in India! Ordered Adidas Predator boots and they fit perfectly using their size guide. Packaging was super secure too. Highly recommend to every footballer!"
+      </p>
+      <div class="flex items-center gap-3 pt-4 border-t border-gray-100 dark:border-zinc-800">
+        <div class="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">A</div>
+        <div>
+          <p class="font-semibold text-gray-900 dark:text-white text-sm">Arjun K.</p>
+          <p class="text-gray-400 text-xs">Verified Buyer · Bangalore</p>
+        </div>
+        <i class="fa-solid fa-circle-check text-emerald-500 ml-auto text-lg" title="Verified Purchase"></i>
+      </div>
+    </div>
+
+    <!-- Review 3 -->
+    <div class="review-card bg-white dark:bg-zinc-900 rounded-2xl p-6 border border-gray-100 dark:border-zinc-800 shadow-sm hover:shadow-md transition-shadow">
+      <div class="flex gap-1 mb-3">
+        <% for(let i = 0; i < 5; i++) { %><i class="fa-solid fa-star text-accent-500 text-sm"></i><% } %>
+      </div>
+      <p class="text-gray-700 dark:text-gray-300 text-sm leading-relaxed mb-4">
+        "Finally found authentic football gear at fair prices. The Nike ball I ordered is excellent quality. Customer support was helpful when I had a sizing question. 10/10 store!"
+      </p>
+      <div class="flex items-center gap-3 pt-4 border-t border-gray-100 dark:border-zinc-800">
+        <div class="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">P</div>
+        <div>
+          <p class="font-semibold text-gray-900 dark:text-white text-sm">Priya S.</p>
+          <p class="text-gray-400 text-xs">Verified Buyer · Delhi</p>
+        </div>
+        <i class="fa-solid fa-circle-check text-emerald-500 ml-auto text-lg" title="Verified Purchase"></i>
+      </div>
+    </div>
+  </div>
+</section>
