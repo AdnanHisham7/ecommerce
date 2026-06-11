@@ -1,0 +1,262 @@
+<% layout('layouts/user') %>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
+  <h1 class="text-2xl md:text-3xl font-black dark:text-white mb-6 md:mb-8">
+    Shopping <span class="text-accent-500">Cart</span>
+    <span class="text-base md:text-lg font-normal text-gray-500">(<%= cart.items.length %> items)</span>
+  </h1>
+
+  <% if (typeof isGuest !== 'undefined' && isGuest && cart.items.length > 0) { %>
+  <div class="bg-accent-50 dark:bg-accent-900/10 border border-accent-200 dark:border-accent-800/40 rounded-xl p-3 md:p-4 mb-6 flex items-center gap-3">
+    <i class="fa-solid fa-circle-info text-accent-500 flex-shrink-0"></i>
+    <p class="text-xs md:text-sm text-gray-700 dark:text-gray-300">
+      Browsing as a guest — your cart is saved. You'll just need to sign in when you're ready to check out.
+    </p>
+  </div>
+  <% } %>
+
+  <% if (cart.items.length === 0) { %>
+  <div class="text-center py-16 md:py-24">
+    <div class="text-6xl md:text-8xl mb-6 animate-bounce">🛒</div>
+    <h2 class="text-xl md:text-2xl font-bold dark:text-white mb-3">Your cart is empty</h2>
+    <p class="text-gray-500 dark:text-gray-400 mb-8">Start shopping to add items to your cart</p>
+    <a href="/shop" class="btn-primary inline-flex items-center gap-2 px-6 md:px-8 py-3 md:py-4 rounded-xl font-bold">
+      Continue Shopping <i class="fa-solid fa-arrow-right"></i>
+    </a>
+  </div>
+  <% } else { %>
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
+
+    <!-- Cart Items -->
+    <div class="lg:col-span-2 space-y-4">
+      <!-- Free shipping bar -->
+      <% if (amountToFreeShipping > 0) { %>
+      <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-3 md:p-4">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs md:text-sm text-blue-700 dark:text-blue-400 font-medium">
+            Add <strong>₹<%= amountToFreeShipping.toLocaleString('en-IN') %></strong> more for <strong>FREE shipping</strong> 🚚
+          </span>
+          <span class="text-xs text-blue-600 dark:text-blue-500 ml-2 flex-shrink-0">
+            <%= Math.round((subtotal/freeShippingThreshold)*100) %>%
+          </span>
+        </div>
+        <div class="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-2">
+          <div class="bg-blue-500 h-2 rounded-full transition-all duration-700" style="width:<%= Math.min(100, Math.round((subtotal/freeShippingThreshold)*100)) %>%"></div>
+        </div>
+      </div>
+      <% } else { %>
+      <div class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-3 flex items-center gap-2">
+        <i class="fa-solid fa-circle-check text-green-500 flex-shrink-0"></i>
+        <span class="text-sm text-green-700 dark:text-green-400 font-medium">🎉 You qualify for FREE shipping!</span>
+      </div>
+      <% } %>
+
+      <!-- Items -->
+      <% cart.items.forEach(item => {
+        const _p = item.product;
+        const _colorFallbackImg = (_p?.variantType === 'color' || _p?.variantType === 'color_size')
+          ? (_p?.colorVariants || []).find(cv => cv.isActive && cv.images?.length)?.images?.[0]?.url
+          : null;
+        const displayImage = item.variant?.variantImage || _p?.images?.[0]?.url || _colorFallbackImg || '/images/placeholder.png';
+      %>
+      <div class="cart-item bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-3 md:p-4" data-item-id="<%= item._id %>">
+        <div class="flex gap-3 md:gap-4">
+          <!-- Image -->
+          <a href="/products/<%= item.product?.slug || '#' %>" class="flex-shrink-0">
+            <img src="<%= displayImage %>"
+              alt="<%= item.product?.name %>"
+              class="w-20 h-20 md:w-24 md:h-24 object-cover rounded-xl bg-gray-100 dark:bg-gray-800"/>
+          </a>
+
+          <!-- Details -->
+          <div class="flex-1 min-w-0">
+            <!-- Product name + trash (always on same line, trash always fits) -->
+            <div class="flex items-start gap-2">
+              <div class="flex-1 min-w-0">
+                <p class="text-xs text-gray-400 dark:text-gray-500 mb-0.5"><%= item.product?.brand || '' %></p>
+                <a href="/products/<%= item.product?.slug || '#' %>"
+                  class="font-semibold text-gray-900 dark:text-white hover:text-accent-500 transition-colors text-sm leading-tight line-clamp-2">
+                  <%= item.product?.name || item.productName %>
+                </a>
+                <!-- Variants -->
+                <% if (item.variant && (item.variant.color || item.variant.size)) { %>
+                <div class="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                  <% if (item.variant.color) { %>
+                  <span class="inline-flex items-center gap-1 text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded-md font-medium">
+                    <% if (item.variant.colorHex) { %>
+                      <span class="w-2.5 h-2.5 rounded-full border border-gray-300 dark:border-gray-600 flex-shrink-0" style="background-color:<%= item.variant.colorHex %>"></span>
+                    <% } %>
+                    <%= item.variant.color %>
+                  </span>
+                  <% } %>
+                  <% if (item.variant.size) { %>
+                  <span class="text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded-md font-medium">
+                    Sz: <%= item.variant.size %>
+                  </span>
+                  <% } %>
+                </div>
+                <% } %>
+              </div>
+              <!-- Trash — flex-shrink-0 prevents overflow -->
+              <button onclick="removeItem('<%= item._id %>')"
+                class="flex-shrink-0 p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
+                aria-label="Remove item">
+                <i class="fa-solid fa-trash-can text-sm"></i>
+              </button>
+            </div>
+
+            <!-- Qty + price -->
+            <div class="flex items-center justify-between mt-2.5 md:mt-3">
+              <div class="flex items-center border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
+                <button onclick="updateQty('<%= item._id %>', -1)"
+                  class="px-2.5 md:px-3 py-1.5 md:py-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-600 dark:text-gray-300 font-bold text-sm">−</button>
+                <span class="px-3 md:px-4 py-1.5 md:py-2 font-bold text-gray-900 dark:text-white text-sm item-qty"><%= item.quantity %></span>
+                <button onclick="updateQty('<%= item._id %>', 1)"
+                  class="px-2.5 md:px-3 py-1.5 md:py-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-600 dark:text-gray-300 font-bold text-sm">+</button>
+              </div>
+              <div class="text-right">
+                <p class="font-bold text-gray-900 dark:text-white item-total text-sm md:text-base">₹<%= (item.price * item.quantity).toLocaleString('en-IN') %></p>
+                <p class="text-xs text-gray-400 dark:text-gray-500">₹<%= item.price.toLocaleString('en-IN') %> each</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <% }) %>
+    </div>
+
+    <!-- Order Summary -->
+    <div class="lg:col-span-1">
+      <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-4 md:p-6 lg:sticky lg:top-24">
+        <h2 class="font-bold text-gray-900 dark:text-white mb-4 md:mb-5">Order Summary</h2>
+
+        <!-- Coupon -->
+        <div class="mb-4 md:mb-5">
+          <% if (cart.couponCode) { %>
+          <div class="flex items-center justify-between bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-3">
+            <div class="flex items-center gap-2 min-w-0">
+              <i class="fa-solid fa-ticket text-green-500 flex-shrink-0"></i>
+              <div class="min-w-0">
+                <p class="text-sm font-semibold text-green-700 dark:text-green-400 truncate"><%= cart.couponCode %></p>
+                <p class="text-xs text-green-600 dark:text-green-500">Coupon applied!</p>
+              </div>
+            </div>
+            <button onclick="removeCoupon()" class="text-xs text-red-500 hover:text-red-700 font-semibold flex-shrink-0 ml-2">Remove</button>
+          </div>
+          <% } else { %>
+          <!-- Coupon input: stacked on mobile, side by side on tablet+ -->
+          <div class="flex flex-col gap-2">
+            <input type="text" id="couponInput" placeholder="Enter coupon code"
+              class="w-full border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-accent-500 outline-none uppercase placeholder-gray-400"/>
+            <button onclick="applyCoupon()" class="w-full px-4 py-2.5 btn-primary rounded-xl text-sm font-semibold">
+              Apply Coupon
+            </button>
+          </div>
+          <% } %>
+        </div>
+
+        <!-- Totals -->
+        <div class="space-y-3 text-sm">
+          <div class="flex justify-between text-gray-600 dark:text-gray-400">
+            <span>Subtotal (<%= cart.items.reduce((s,i)=>s+i.quantity,0) %> items)</span>
+            <span id="subtotalDisplay">₹<%= subtotal.toLocaleString('en-IN') %></span>
+          </div>
+          <% if (cart.couponDiscount > 0) { %>
+          <div class="flex justify-between text-green-500 font-medium">
+            <span>Coupon Discount</span>
+            <span>−₹<%= cart.couponDiscount.toLocaleString('en-IN') %></span>
+          </div>
+          <% } %>
+          <div class="flex justify-between text-gray-600 dark:text-gray-400">
+            <span>Shipping</span>
+            <span id="shippingDisplay">
+              <% if (shippingCharge === 0) { %>
+                <span class="text-green-500 font-semibold">FREE</span>
+              <% } else { %>
+                ₹<%= shippingCharge %>
+              <% } %>
+            </span>
+          </div>
+          <div class="border-t border-gray-200 dark:border-gray-800 pt-3 flex justify-between font-bold text-gray-900 dark:text-white text-base">
+            <span>Total</span>
+            <span id="totalDisplay">₹<%= total.toLocaleString('en-IN') %></span>
+          </div>
+        </div>
+
+        <a href="/checkout" class="w-full btn-primary py-3.5 rounded-xl font-bold text-base flex items-center justify-center gap-2 mt-5">
+          Proceed to Checkout <i class="fa-solid fa-arrow-right"></i>
+        </a>
+        <a href="/shop" class="w-full text-center block mt-3 text-sm text-gray-500 dark:text-gray-400 hover:text-accent-500 transition-colors">
+          Continue Shopping
+        </a>
+      </div>
+    </div>
+  </div>
+  <% } %>
+</div>
+
+<script>
+async function updateQty(itemId, delta) {
+  const el = document.querySelector(`[data-item-id="${itemId}"]`);
+  if (!el) return;
+  let currentQty = parseInt(el.querySelector('.item-qty').textContent);
+  let newQty = currentQty + delta;
+  if (newQty < 1) { removeItem(itemId); return; }
+  el.querySelector('.item-qty').textContent = newQty;
+  const r = await fetch('/cart/update', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ itemId, quantity: newQty }),
+  });
+  const data = await r.json();
+  if (data.success) {
+    if (data.couponCleared) {
+      showToast('Your coupon no longer applies to the items in your cart and was removed', 'info');
+      setTimeout(() => window.location.reload(), 900);
+      return;
+    }
+    el.querySelector('.item-total').textContent = '₹' + data.itemTotal.toLocaleString('en-IN');
+    document.getElementById('subtotalDisplay').textContent = '₹' + data.subtotal.toLocaleString('en-IN');
+    document.getElementById('totalDisplay').textContent    = '₹' + data.total.toLocaleString('en-IN');
+    document.getElementById('shippingDisplay').innerHTML   = data.shippingCharge === 0
+      ? '<span class="text-green-500 font-semibold">FREE</span>'
+      : '₹' + data.shippingCharge;
+    const cc = document.getElementById('cartCount');
+    if (cc) cc.textContent = data.cartCount;
+    const mcc = document.getElementById('mobileCartCount');
+    if (mcc) mcc.textContent = data.cartCount;
+  } else {
+    el.querySelector('.item-qty').textContent = currentQty;
+    showToast(data.message || 'Failed to update quantity', 'error');
+  }
+}
+
+async function removeItem(itemId) {
+  if (!confirm('Remove this item?')) return;
+  const r = await fetch(`/cart/item/${itemId}`, { method: 'DELETE' });
+  const data = await r.json();
+  if (data.success) {
+    document.querySelector(`[data-item-id="${itemId}"]`)?.remove();
+    showToast(data.couponCleared ? 'Item removed — your coupon no longer applies and was removed' : 'Item removed', 'info');
+    setTimeout(() => window.location.reload(), 400);
+  }
+}
+
+async function applyCoupon() {
+  const code = document.getElementById('couponInput').value.trim();
+  if (!code) return;
+  const r = await fetch('/cart/coupon/apply', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ couponCode: code }),
+  });
+  const data = await r.json();
+  if (data.success) { showToast(data.message, 'success'); setTimeout(() => window.location.reload(), 1000); }
+  else showToast(data.message, 'error');
+}
+
+async function removeCoupon() {
+  const r = await fetch('/cart/coupon/remove', { method: 'POST' });
+  const data = await r.json();
+  if (data.success) { showToast('Coupon removed', 'info'); window.location.reload(); }
+}
+</script>
