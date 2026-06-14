@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const productCtrl = require('../products/product.controller');
 const cartCtrl = require('../cart/cart.controller');
+const userCtrl = require('../users/user.controller');
 const { requireAuth, optionalAuth } = require('../../middlewares/auth.middleware');
 const noCache = require('../../middlewares/noCache.middleware');
 const { searchLimiter } = require('../../middlewares/rateLimit.middleware');
@@ -23,5 +24,9 @@ router.post('/cart/update', optionalAuth, cartCtrl.updateCartItem);
 router.delete('/cart/item/:itemId', optionalAuth, cartCtrl.removeFromCart);
 router.post('/cart/coupon/apply', optionalAuth, cartCtrl.applyCoupon);
 router.post('/cart/coupon/remove', optionalAuth, cartCtrl.removeCoupon);
+
+// ---- Wishlist ----
+router.get('/wishlist', requireAuth, userCtrl.getWishlist);
+router.post('/wishlist/toggle', requireAuth, userCtrl.toggleWishlist);
 
 module.exports = router;

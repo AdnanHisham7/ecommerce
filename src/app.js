@@ -8,6 +8,7 @@ const session = require("express-session");
 const passport = require("./config/passport");
 
 const sessionConfig = require("./config/session");
+const injectLocals = require("./middlewares/locals.middleware");
 const routes = require("./routes/index");
 const {
   notFound,
@@ -48,6 +49,9 @@ app.use(flash());
 app.engine("ejs", ejsMate);
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
+
+// ====== Inject common view data ======
+app.use(injectLocals);
 
 // ====== Routes ======
 app.use(routes);
