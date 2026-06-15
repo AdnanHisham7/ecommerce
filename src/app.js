@@ -1,6 +1,7 @@
 const express = require("express");
 const path = require("path");
 const morgan = require("morgan");
+const compression = require("compression");
 const cookieParser = require("cookie-parser");
 const flash = require("connect-flash");
 const ejsMate = require("ejs-mate");
@@ -8,8 +9,9 @@ const session = require("express-session");
 const passport = require("./config/passport");
 
 const sessionConfig = require("./config/session");
-const injectLocals = require("./middlewares/locals.middleware");
 const routes = require("./routes/index");
+const injectLocals = require("./middlewares/locals.middleware");
+const { maintenanceGuard } = require("./middlewares/auth.middleware");
 const {
   notFound,
   normalizeError,
@@ -24,6 +26,7 @@ const app = express();
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(cookieParser());
+app.use(compression());
 
 // ====== Logging ======
 if (env.isDev) app.use(morgan("dev"));
@@ -50,8 +53,11 @@ app.engine("ejs", ejsMate);
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
 
-// ====== Inject common view data ======
+// ====== Inject common view data (includes featureFlags) ======
 app.use(injectLocals);
+
+// ====== Maintenance mode guard (runs after injectLocals so flags are ready) ======
+app.use(maintenanceGuard);
 
 // ====== Routes ======
 app.use(routes);
