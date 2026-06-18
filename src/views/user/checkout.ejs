@@ -1,0 +1,469 @@
+<% layout('layouts/user') %>
+
+<div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-5 md:py-8">
+  <h1 class="text-2xl md:text-3xl font-black dark:text-white mb-5 md:mb-8">Checkout</h1>
+
+  <form id="checkoutForm">
+    <div class="grid grid-cols-1 lg:grid-cols-5 gap-8">
+      <!-- Left: Shipping + Payment -->
+      <div class="lg:col-span-3 space-y-6">
+
+        <!-- Shipping Address -->
+        <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-4 md:p-6">
+          <h2 class="font-bold text-gray-900 dark:text-white mb-5 flex items-center gap-2"><i class="fa-solid fa-map-marker-alt text-accent-500"></i> Shipping Address</h2>
+
+          <% if (addresses && addresses.length) { %>
+          <div class="space-y-3 mb-4" id="savedAddresses">
+            <% addresses.forEach((addr, i) => { %>
+            <label class="flex items-start gap-3 cursor-pointer group">
+              <input type="radio" name="addressId" value="<%= addr._id %>"
+                <%= (addr.isDefault || i === 0) ? 'checked' : '' %>
+                class="mt-1 w-4 h-4 accent-red-500"/>
+              <div class="flex-1 border border-gray-200 dark:border-gray-700 group-hover:border-accent-400 rounded-xl p-3 transition-all">
+                <div class="flex items-center gap-2 mb-1">
+                  <p class="font-semibold text-sm dark:text-white"><%= addr.fullName %></p>
+                  <span class="text-xs bg-gray-100 dark:bg-gray-800 text-gray-500 px-2 py-0.5 rounded-full capitalize"><%= addr.addressType %></span>
+                  <% if (addr.isDefault) { %><span class="text-xs bg-accent-100 dark:bg-accent-900/30 text-accent-600 dark:text-accent-400 px-2 py-0.5 rounded-full font-semibold">Default</span><% } %>
+                </div>
+                <p class="text-sm text-gray-600 dark:text-gray-400"><%= addr.addressLine1 %><% if(addr.addressLine2) { %>, <%= addr.addressLine2 %><% } %></p>
+                <p class="text-sm text-gray-600 dark:text-gray-400"><%= addr.city %>, <%= addr.state %> — <%= addr.pincode %></p>
+                <p class="text-sm text-gray-600 dark:text-gray-400">📞 <%= addr.phone %></p>
+              </div>
+            </label>
+            <% }) %>
+          </div>
+          <button type="button" onclick="toggleNewAddress()" class="text-accent-500 hover:text-accent-600 text-sm font-semibold flex items-center gap-1.5">
+            <i class="fa-solid fa-plus text-xs"></i> Add New Address
+          </button>
+          <% } %>
+
+          <!-- New Address Form -->
+          <div id="newAddressForm" class="<%= addresses && addresses.length ? 'hidden' : '' %> mt-4">
+            <% if (addresses && addresses.length) { %><input type="radio" name="addressId" value="new" id="useNewAddress" class="hidden"/><% } %>
+            <div class="grid grid-cols-2 gap-4">
+              <div class="col-span-2 md:col-span-1">
+                <label class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Full Name *</label>
+                <input type="text" name="fullName" class="w-full mt-1 border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-accent-500 outline-none" placeholder="John Doe" <%= !addresses?.length ? 'required' : '' %>/>
+              </div>
+              <div class="col-span-2 md:col-span-1">
+                <label class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Phone *</label>
+                <input type="tel" name="phone" class="w-full mt-1 border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-accent-500 outline-none" placeholder="+91 9876543210" <%= !addresses?.length ? 'required' : '' %>/>
+              </div>
+              <div class="col-span-2">
+                <label class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Address Line 1 *</label>
+                <input type="text" name="addressLine1" class="w-full mt-1 border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-accent-500 outline-none" placeholder="House/Flat no., Street" <%= !addresses?.length ? 'required' : '' %>/>
+              </div>
+              <div class="col-span-2">
+                <label class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Address Line 2</label>
+                <input type="text" name="addressLine2" class="w-full mt-1 border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-accent-500 outline-none" placeholder="Landmark, Area (optional)"/>
+              </div>
+              <div>
+                <label class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">City *</label>
+                <input type="text" name="city" class="w-full mt-1 border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-accent-500 outline-none" placeholder="City" <%= !addresses?.length ? 'required' : '' %>/>
+              </div>
+              <div>
+                <label class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">State *</label>
+                <select name="state" class="w-full mt-1 border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-accent-500 outline-none" <%= !addresses?.length ? 'required' : '' %>>
+                  <%- include('../partials/shared/state-options') %>
+                </select>
+              </div>
+              <div>
+                <label class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Pincode *</label>
+                <input type="text" name="pincode" class="w-full mt-1 border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-accent-500 outline-none" placeholder="560001" <%= !addresses?.length ? 'required' : '' %>/>
+              </div>
+              <div>
+                <label class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Address Type</label>
+                <select name="addressType" class="w-full mt-1 border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-accent-500 outline-none">
+                  <option value="home">Home</option><option value="office">Office</option><option value="other">Other</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Payment Method -->
+        <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-4 md:p-6">
+          <h2 class="font-bold text-gray-900 dark:text-white mb-5 flex items-center gap-2"><i class="fa-solid fa-credit-card text-accent-500"></i> Payment Method</h2>
+          <div class="space-y-3">
+            <label class="flex items-center gap-3 cursor-pointer p-3 border-2 border-transparent hover:border-accent-300 rounded-xl transition-all has-[:checked]:border-accent-500 has-[:checked]:bg-accent-50 dark:has-[:checked]:bg-accent-900/10">
+              <input type="radio" name="paymentMethod" value="razorpay" checked class="w-4 h-4 accent-yellow-500"/>
+              <div class="flex items-center gap-2 flex-1">
+                <i class="fa-brands fa-cc-visa text-blue-600 text-xl"></i>
+                <div>
+                  <p class="font-semibold text-sm dark:text-white">Credit / Debit Card, UPI, NetBanking, Wallet</p>
+                  <p class="text-xs text-gray-500 dark:text-gray-400">Powered by Razorpay – Secure & Fast</p>
+                </div>
+              </div>
+              <div class="flex gap-1">
+                <img src="/images/icons/razorpay-icon.svg" class="h-6" alt="Razorpay"/>
+              </div>
+            </label>
+            <label class="flex items-center gap-3 cursor-pointer p-3 border-2 border-transparent hover:border-accent-300 rounded-xl transition-all has-[:checked]:border-accent-500 has-[:checked]:bg-accent-50 dark:has-[:checked]:bg-accent-900/10">
+              <input type="radio" name="paymentMethod" value="cod" class="w-4 h-4 accent-yellow-500"/>
+              <div>
+                <p class="font-semibold text-sm dark:text-white">💵 Cash on Delivery</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400">Pay when your order arrives</p>
+              </div>
+            </label>
+            <% if (walletBalance > 0 && walletBalance >= total) { %>
+            <label class="flex items-center gap-3 cursor-pointer p-3 border-2 border-transparent hover:border-accent-300 rounded-xl transition-all has-[:checked]:border-accent-500 has-[:checked]:bg-accent-50 dark:has-[:checked]:bg-accent-900/10">
+              <input type="radio" name="paymentMethod" value="wallet" class="w-4 h-4 accent-yellow-500"/>
+              <div>
+                <p class="font-semibold text-sm dark:text-white">👛 Wallet</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400">Balance: <span class="font-semibold text-green-500">₹<%= walletBalance.toLocaleString('en-IN') %></span></p>
+              </div>
+            </label>
+            <% } %>
+          </div>
+        </div>
+
+        <!-- Use Wallet Balance (hidden when wallet payment method is selected, since it's redundant) -->
+        <% if (walletBalance > 0 && walletBalance < total) { %>
+        <div id="useWalletSection" class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-4">
+          <label class="flex items-center gap-3 cursor-pointer">
+            <input type="checkbox" name="useWallet" value="true" id="useWalletCheck" class="w-4 h-4 accent-yellow-500"/>
+            <div>
+              <p class="font-semibold text-sm dark:text-white">Use Wallet Balance</p>
+              <p class="text-xs text-gray-500 dark:text-gray-400">Apply ₹<%= walletBalance.toLocaleString('en-IN') %> from your wallet towards this order</p>
+            </div>
+          </label>
+        </div>
+        <% } %>
+      </div>
+
+      <!-- Right: Order Summary -->
+      <div class="lg:col-span-2">
+        <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-6 sticky top-24">
+          <h2 class="font-bold text-gray-900 dark:text-white mb-4">Order Summary</h2>
+
+          <!-- Items list -->
+          <div class="space-y-3 mb-5 max-h-64 overflow-y-auto pr-1">
+            <% cart.items.forEach(item => {
+              // Prefer color variant image → product image → first color variant image
+              const _cp = item.product;
+              const _cColorFb = (_cp?.variantType === 'color' || _cp?.variantType === 'color_size')
+                ? (_cp?.colorVariants || []).find(cv => cv.isActive && cv.images?.length)?.images?.[0]?.url
+                : null;
+              const displayImg = item.variant?.variantImage || _cp?.images?.[0]?.url || _cColorFb || '/images/placeholder.png';
+            %>
+            <div class="flex items-center gap-3">
+              <div class="relative flex-shrink-0">
+                <img src="<%= displayImg %>" class="w-12 h-12 rounded-xl object-cover bg-gray-100 dark:bg-gray-800"/>
+                <span class="absolute -top-1.5 -right-1.5 w-5 h-5 bg-accent-500 text-white text-xs rounded-full flex items-center justify-center font-bold"><%= item.quantity %></span>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium dark:text-gray-200 truncate"><%= item.product?.name || 'Product' %></p>
+                <%#
+                  Show color + size line for any variantType that uses them.
+                  No reference to matrixId or hasVariants.
+                %>
+                <% if (item.variant && (item.variant.color || item.variant.size)) { %>
+                <div class="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                  <% if (item.variant.colorHex) { %>
+                    <span class="w-3 h-3 rounded-full border border-gray-300 dark:border-gray-600 flex-shrink-0"
+                      style="background-color:<%= item.variant.colorHex %>"></span>
+                  <% } %>
+                  <p class="text-xs text-gray-400">
+                    <%= [item.variant.color, item.variant.size ? `Size ${item.variant.size}` : ''].filter(Boolean).join(' · ') %>
+                  </p>
+                </div>
+                <% } %>
+              </div>
+              <span class="font-semibold text-sm dark:text-white flex-shrink-0">₹<%= (item.price * item.quantity).toLocaleString('en-IN') %></span>
+            </div>
+            <% }) %>
+          </div>
+
+          <!-- Totals -->
+          <div class="space-y-2.5 text-sm border-t border-gray-200 dark:border-gray-800 pt-4">
+            <div class="flex justify-between text-gray-600 dark:text-gray-400">
+              <span>Subtotal</span><span>₹<%= subtotal.toLocaleString('en-IN') %></span>
+            </div>
+            <% if (couponDiscount > 0) { %>
+            <div class="flex justify-between text-green-500">
+              <span>Coupon Discount</span><span>−₹<%= couponDiscount.toLocaleString('en-IN') %></span>
+            </div>
+            <% } %>
+            <div class="flex justify-between text-gray-600 dark:text-gray-400">
+              <span>Shipping</span>
+              <span>
+                <% if (shippingCharge === 0) { %>
+                  <span class="text-green-500 font-semibold">FREE</span>
+                <% } else { %>
+                  ₹<%= shippingCharge %>
+                <% } %>
+              </span>
+            </div>
+            <% if (typeof tax !== 'undefined' && tax > 0) { %>
+            <div class="flex justify-between text-gray-600 dark:text-gray-400">
+              <span>Tax (18%)</span><span>₹<%= tax.toLocaleString('en-IN') %></span>
+            </div>
+            <% } %>
+            <div class="border-t border-gray-200 dark:border-gray-800 pt-2.5 flex justify-between font-bold text-gray-900 dark:text-white text-base">
+              <span>Total</span><span id="finalTotal" data-total="<%= total %>">₹<%= total.toLocaleString('en-IN') %></span>
+            </div>
+          </div>
+
+          <button type="button" onclick="placeOrder()" id="placeOrderBtn"
+            class="w-full btn-primary py-4 rounded-xl font-bold text-base flex items-center justify-center gap-2 mt-5">
+            <i class="fa-solid fa-lock text-sm"></i> Place Order Securely
+          </button>
+          <p class="text-center text-xs text-gray-400 dark:text-gray-500 mt-3 flex items-center justify-center gap-1">
+            <i class="fa-solid fa-shield-halved text-green-500"></i> SSL Encrypted • Your data is secure
+          </p>
+        </div>
+      </div>
+    </div>
+  </form>
+</div>
+
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script>
+function toggleNewAddress() {
+  const form = document.getElementById('newAddressForm');
+  form.classList.toggle('hidden');
+  const useNew = document.getElementById('useNewAddress');
+  if (useNew && !form.classList.contains('hidden')) useNew.checked = true;
+}
+
+// Centrally open Razorpay modal — used by both initial checkout and retry-from-checkout
+function openRazorpay({ razorpayKeyId, razorpayOrderId, amount, currency, orderId, userName, userEmail, userPhone }) {
+  return new Promise((resolve) => {
+    const options = {
+      key:      razorpayKeyId,
+      amount:   amount,
+      currency: currency || 'INR',
+      name:     '<%= brand.name %>',
+      description: `Order #${orderId}`,
+      order_id: razorpayOrderId,
+      handler: async function(response) {
+        // Payment successful — verify
+        try {
+          const verifyRes = await fetch('/checkout/verify-payment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              orderId,
+              razorpayPaymentId:  response.razorpay_payment_id,
+              razorpayOrderId:    response.razorpay_order_id,
+              razorpaySignature:  response.razorpay_signature,
+            }),
+          });
+          const verifyData = await verifyRes.json();
+          if (verifyData.success) {
+            resolve({ success: true, redirectUrl: verifyData.redirectUrl });
+          } else {
+            // Signature mismatch — backend already marked failed
+            resolve({ success: false, orderId, message: verifyData.message || 'Payment verification failed' });
+          }
+        } catch (err) {
+          resolve({ success: false, orderId, message: 'Network error during verification' });
+        }
+      },
+      prefill: {
+        name:    userName || '',
+        email:   userEmail || '',
+        contact: userPhone || '',
+      },
+      theme: { color: '<%= brand.colors.accent %>' },
+      modal: {
+        ondismiss: async function() {
+          // User closed the modal without paying — mark as failed
+          await markPaymentFailed(orderId, 'Payment window closed by user');
+          resolve({ success: false, orderId, dismissed: true });
+        },
+      },
+    };
+
+    const rzp = new Razorpay(options);
+    rzp.on('payment.failed', async function(response) {
+      await markPaymentFailed(orderId, response.error?.description || 'Payment failed');
+      resolve({ success: false, orderId, message: response.error?.description || 'Payment failed' });
+    });
+    rzp.open();
+  });
+}
+
+async function markPaymentFailed(orderId, reason) {
+  try {
+    await fetch('/checkout/fail-payment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId, reason }),
+    });
+  } catch (_) { /* best-effort */ }
+}
+
+function showPaymentFailedDialog(orderId, message) {
+  // Remove any existing dialog
+  const existing = document.getElementById('rzp-fail-dialog');
+  if (existing) existing.remove();
+
+  const dialog = document.createElement('div');
+  dialog.id = 'rzp-fail-dialog';
+  dialog.className = 'fixed inset-0 z-50 flex items-center justify-center p-4';
+  dialog.innerHTML = `
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="document.getElementById('rzp-fail-dialog').remove()"></div>
+    <div class="relative bg-white dark:bg-gray-900 rounded-2xl shadow-2xl p-6 max-w-sm w-full border border-gray-100 dark:border-gray-800 text-center">
+      <div class="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+        <i class="fa-solid fa-circle-xmark text-red-500 text-3xl"></i>
+      </div>
+      <h3 class="text-xl font-black dark:text-white mb-2">Payment Unsuccessful</h3>
+      <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">${message || 'Your payment could not be completed. You can retry from your order details page.'}</p>
+      <div class="flex flex-col gap-3">
+        <a href="/orders/${orderId}"
+          class="w-full py-3 bg-accent-500 hover:bg-accent-600 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2">
+          <i class="fa-solid fa-rotate-right"></i> View Order & Retry Payment
+        </a>
+        <button onclick="document.getElementById('rzp-fail-dialog').remove()"
+          class="w-full py-3 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 font-semibold rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+          Stay on Checkout
+        </button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(dialog);
+}
+
+async function placeOrder() {
+  const btn = document.getElementById('placeOrderBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i> Processing...';
+
+  const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked')?.value;
+  const addressId     = document.querySelector('input[name="addressId"]:checked')?.value;
+  const useWallet     = document.getElementById('useWalletCheck')?.checked;
+
+  // Client-side wallet balance check for wallet-only payment
+  if (paymentMethod === 'wallet') {
+    const walletBalance = parseFloat('<%= walletBalance %>') || 0;
+    const orderTotal    = parseFloat(document.getElementById('finalTotal')?.dataset?.total || '0');
+    if (walletBalance < orderTotal) {
+      showToast(
+        `Insufficient wallet balance. Available: ₹${walletBalance.toLocaleString('en-IN')}, Required: ₹${orderTotal.toLocaleString('en-IN')}`,
+        'error'
+      );
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-lock text-sm"></i> Place Order Securely';
+      return;
+    }
+  }
+
+  let newAddress = null;
+  if (addressId === 'new' || !addressId) {
+    const f = document.getElementById('newAddressForm');
+    if (f) {
+      newAddress = {};
+      ['fullName','phone','addressLine1','addressLine2','city','state','pincode','addressType'].forEach(field => {
+        const el = f.querySelector(`[name="${field}"]`);
+        if (el) newAddress[field] = el.value;
+      });
+      if (!newAddress.fullName || !newAddress.phone || !newAddress.addressLine1 || !newAddress.city || !newAddress.state || !newAddress.pincode) {
+        showToast('Please fill all required address fields', 'error');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-lock text-sm"></i> Place Order Securely';
+        return;
+      }
+    }
+  }
+
+  const body = {
+    paymentMethod,
+    addressId:  addressId || 'new',
+    useWallet:  useWallet ? 'true' : 'false',
+  };
+  if (newAddress) body.newAddress = JSON.stringify(newAddress);
+
+  try {
+    const res = await fetch('/checkout/place-order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+
+    // COD / Wallet — straightforward redirect
+    if (paymentMethod === 'cod' || paymentMethod === 'wallet') {
+      if (data.success) {
+        window.location.href = data.redirectUrl;
+      } else {
+        showToast(data.message || 'Error placing order', 'error');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-lock text-sm"></i> Place Order Securely';
+      }
+      return;
+    }
+
+    // Razorpay
+    if (!data.success) {
+      showToast(data.message || 'Error creating order', 'error');
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-lock text-sm"></i> Place Order Securely';
+      return;
+    }
+
+    if (typeof Razorpay === 'undefined') {
+      showToast('Razorpay SDK failed to load. Please refresh and try again.', 'error');
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-lock text-sm"></i> Place Order Securely';
+      return;
+    }
+
+    const result = await openRazorpay({
+      razorpayKeyId:  data.razorpayKeyId,
+      razorpayOrderId: data.razorpayOrderId,
+      amount:   data.amount,
+      currency: data.currency,
+      orderId:  data.orderId,
+      userName:  '<%= currentUser.name %>',
+      userEmail: '<%= currentUser.email %>',
+      userPhone: '<%= currentUser.phone %>',
+    });
+
+    if (result.success) {
+      window.location.href = result.redirectUrl;
+    } else {
+      // Show failure dialog with retry link pointing to order detail
+      showPaymentFailedDialog(result.orderId, result.message);
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-lock text-sm"></i> Place Order Securely';
+    }
+
+  } catch (err) {
+    console.error(err);
+    showToast('Something went wrong. Please try again.', 'error');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-lock text-sm"></i> Place Order Securely';
+  }
+}
+
+
+// ======= Wallet UX: hide "Use Wallet Balance" toggle when wallet is the payment method =======
+document.addEventListener('DOMContentLoaded', () => {
+  const paymentRadios    = document.querySelectorAll('input[name="paymentMethod"]');
+  const useWalletSection = document.getElementById('useWalletSection');
+  const useWalletCheck   = document.getElementById('useWalletCheck');
+  const walletBalance    = parseFloat('<%= walletBalance %>') || 0;
+  const orderTotal       = parseFloat('<%= total %>') || 0;
+
+  function updateWalletUX() {
+    if (!useWalletSection) return;
+    const selected = document.querySelector('input[name="paymentMethod"]:checked')?.value;
+
+    // Hide "Use Wallet Balance" checkbox entirely when:
+    // 1. Wallet-only payment is selected (redundant), OR
+    // 2. Wallet balance covers the full order (no need for partial — just use wallet payment method)
+    const walletCoversAll = walletBalance >= orderTotal;
+
+    if (selected === 'wallet' || walletCoversAll) {
+      useWalletSection.style.display = 'none';
+      if (useWalletCheck) useWalletCheck.checked = false;
+    } else {
+      useWalletSection.style.display = '';
+    }
+  }
+
+  paymentRadios.forEach(r => r.addEventListener('change', updateWalletUX));
+  updateWalletUX();
+});
+</script>

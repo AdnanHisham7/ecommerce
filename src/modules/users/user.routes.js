@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const productCtrl = require('../products/product.controller');
 const cartCtrl = require('../cart/cart.controller');
+const orderCtrl = require('../orders/order.controller');
 const userCtrl = require('../users/user.controller');
 const { requireAuth, optionalAuth } = require('../../middlewares/auth.middleware');
 const noCache = require('../../middlewares/noCache.middleware');
@@ -24,6 +25,17 @@ router.post('/cart/update', optionalAuth, cartCtrl.updateCartItem);
 router.delete('/cart/item/:itemId', optionalAuth, cartCtrl.removeFromCart);
 router.post('/cart/coupon/apply', optionalAuth, cartCtrl.applyCoupon);
 router.post('/cart/coupon/remove', optionalAuth, cartCtrl.removeCoupon);
+
+// ---- Checkout & Orders ----
+// Checkout itself always requires login — requireAuth stores req.session.returnTo
+// so the user lands back on /checkout right after logging in (guest cart is
+// merged into their account at that point — see auth.controller.js).
+router.get('/checkout', requireAuth, orderCtrl.getCheckoutPage);
+router.post('/checkout/place-order', requireAuth, orderCtrl.placeOrder);
+// Buy Now is allowed for guests: it adds the item to their session cart and
+// sends them to /cart to keep browsing, rather than forcing an immediate login.
+router.post('/buy-now', optionalAuth, orderCtrl.buyNow);
+router.get('/orders/success/:orderId', requireAuth, orderCtrl.getOrderSuccess);
 
 // ---- Wishlist ----
 router.get('/wishlist', requireAuth, userCtrl.getWishlist);
