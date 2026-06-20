@@ -36,6 +36,12 @@ router.post('/checkout/place-order', requireAuth, orderCtrl.placeOrder);
 // sends them to /cart to keep browsing, rather than forcing an immediate login.
 router.post('/buy-now', optionalAuth, orderCtrl.buyNow);
 router.get('/orders/success/:orderId', requireAuth, orderCtrl.getOrderSuccess);
+router.post('/checkout/verify-payment', requireAuth, orderCtrl.verifyPayment);
+router.post('/checkout/fail-payment', requireAuth, orderCtrl.failPayment);
+router.post('/orders/:id/retry-payment', requireAuth, orderCtrl.retryPayment);
+
+// ---- Razorpay Webhook (raw body) ----
+router.post('/webhook/razorpay', orderCtrl.razorpayWebhook);
 
 // ---- Wishlist ----
 router.get('/wishlist', requireAuth, userCtrl.getWishlist);

@@ -410,6 +410,208 @@ const placeOrder = asyncHandler(async (req, res) => {
 // ============ VERIFY RAZORPAY PAYMENT ============
 
 
+const verifyPayment = asyncHandler(async (req, res) => {
+  const { orderId, razorpayPaymentId, razorpayOrderId, razorpaySignature } = req.body;
+
+  const order = await Order.findOne({ _id: orderId, user: req.session?.userId });
+  if (!order) throw ApiError.notFound('Order not found');
+
+  // Don't double-process
+  if (order.paymentStatus === 'paid') {
+    return res.json({ success: true, redirectUrl: `/orders/success/${order._id}` });
+  }
+
+  const body = razorpayOrderId + '|' + razorpayPaymentId;
+  const expectedSignature = crypto
+    .createHmac('sha256', env.razorpay.keySecret)
+    .update(body)
+    .digest('hex');
+
+  if (expectedSignature !== razorpaySignature) {
+    order.paymentStatus         = 'failed';
+    order.razorpayPaymentStatus = 'failed';
+    order.trackingHistory.push({ status: 'pending', message: 'Payment verification failed - signature mismatch' });
+    await order.save();
+    return res.json({ success: false, message: 'Payment verification failed. Please retry.', orderId: order._id });
+  }
+
+  // Payment is genuine — now finalize: deduct stock, clear cart, update coupon
+  const user = await User.findById(order.user);
+  const cart = await Cart.findOne({ user: order.user });
+
+  // Deduct wallet if used (safe deduction — only on first successful verification)
+  if (order.walletAmountUsed > 0) {
+    await deductWallet(
+      user,
+      order.walletAmountUsed,
+      `Wallet contribution for order #${order.orderNumber}`,
+      order._id
+    );
+  }
+
+  // Update coupon usage
+  if (order.appliedCoupon) {
+    await Coupon.findByIdAndUpdate(order.appliedCoupon, {
+      $inc: { usedCount: 1 },
+      $push: { usedBy: { user: order.user, orderId: order._id } },
+    });
+  }
+
+  // Deduct stock and clear cart
+  await finalizeOrder(order, cart, user);
+
+  order.paymentStatus         = 'paid';
+  order.paidAt                = new Date();
+  order.orderStatus           = 'confirmed';
+  order.razorpayPaymentId     = razorpayPaymentId;
+  order.razorpayOrderId       = razorpayOrderId;
+  order.razorpaySignature     = razorpaySignature;
+  order.razorpayPaymentStatus = 'captured';
+  order.trackingHistory.push({ status: 'confirmed', message: 'Payment confirmed via Razorpay' });
+  await order.save();
+
+  // Notify customer (email + in-app + push) and admin socket
+  const userForNotif = await User.findById(order.user);
+  if (userForNotif) await notify.orderPlaced(userForNotif, order);
+
+  res.json({ success: true, redirectUrl: `/orders/success/${order._id}` });
+});
+
+// ============ FAIL PAYMENT (called from frontend on dismiss / payment.failed event) ============
+
+
+const failPayment = asyncHandler(async (req, res) => {
+  const { orderId, reason } = req.body;
+  if (!orderId) return res.json({ success: false });
+
+  const order = await Order.findOne({ _id: orderId, user: req.session?.userId });
+  if (!order) return res.json({ success: false });
+
+  // Only mark failed if still pending (not already paid)
+  if (order.paymentStatus === 'pending') {
+    order.paymentStatus         = 'failed';
+    order.razorpayPaymentStatus = 'failed';
+    order.trackingHistory.push({ status: 'pending', message: reason || 'Payment was not completed' });
+    await order.save();
+  }
+
+  res.json({ success: true, orderId: order._id });
+});
+
+// ============ RETRY PAYMENT ============
+
+
+const retryPayment = asyncHandler(async (req, res) => {
+  const order = await Order.findOne({ _id: req.params.id, user: req.session?.userId });
+  if (!order) throw ApiError.notFound('Order not found');
+  if (order.paymentStatus !== 'failed') throw ApiError.badRequest('Payment retry not available for this order');
+
+  // Create a fresh Razorpay order for the same amount
+  const razorpayOrder = await razorpay.orders.create({
+    amount: Math.round(order.totalAmount * 100),
+    currency: 'INR',
+    receipt: order._id.toString(),
+    notes: { orderId: order._id.toString(), userId: order.user.toString() },
+  });
+
+  order.razorpayOrderId       = razorpayOrder.id;
+  order.razorpayPaymentId     = undefined;
+  order.razorpaySignature     = undefined;
+  order.razorpayPaymentStatus = 'created';
+  order.paymentStatus         = 'pending';
+  order.trackingHistory.push({ status: 'pending', message: 'Payment retry initiated' });
+  await order.save();
+
+  res.json({
+    success: true,
+    razorpayOrderId: razorpayOrder.id,
+    razorpayKeyId: env.razorpay.keyId,
+    amount: razorpayOrder.amount,
+    currency: razorpayOrder.currency || 'INR',
+    orderId: order._id,
+  });
+});
+
+// ============ RAZORPAY WEBHOOK ============
+
+
+const razorpayWebhook = asyncHandler(async (req, res) => {
+  const webhookSecret = env.razorpay.webhookSecret;
+  if (webhookSecret) {
+    const signature = req.headers['x-razorpay-signature'];
+    const expectedSignature = crypto
+      .createHmac('sha256', webhookSecret)
+      .update(JSON.stringify(req.body))
+      .digest('hex');
+    if (signature !== expectedSignature) return res.status(400).send('Invalid signature');
+  }
+
+  const event = req.body;
+  switch (event.event) {
+    case 'payment.captured': {
+      const payment = event.payload.payment.entity;
+      const orderId = payment.notes?.orderId;
+      if (orderId) {
+        const order = await Order.findById(orderId);
+        if (order && order.paymentStatus !== 'paid') {
+          const cart = await Cart.findOne({ user: order.user });
+          const user = await User.findById(order.user);
+
+          // Wallet deduction (safe — if not already done)
+          if (order.walletAmountUsed > 0) {
+            await deductWallet(
+              user,
+              order.walletAmountUsed,
+              `Wallet contribution for order #${order.orderNumber}`,
+              order._id
+            );
+          }
+          if (order.appliedCoupon) {
+            await Coupon.findByIdAndUpdate(order.appliedCoupon, {
+              $inc: { usedCount: 1 },
+              $push: { usedBy: { user: order.user, orderId: order._id } },
+            });
+          }
+          await finalizeOrder(order, cart, user);
+
+          order.paymentStatus         = 'paid';
+          order.paidAt                = new Date();
+          order.orderStatus           = 'confirmed';
+          order.razorpayPaymentId     = payment.id;
+          order.razorpayPaymentStatus = 'captured';
+          order.trackingHistory.push({ status: 'confirmed', message: 'Payment confirmed via Razorpay webhook' });
+          await order.save();
+
+          // Notify customer via webhook path too
+          if (user) await notify.orderPlaced(user, order);
+        }
+      }
+      break;
+    }
+    case 'payment.failed': {
+      const failedPayment = event.payload.payment.entity;
+      const failedOrderId = failedPayment.notes?.orderId;
+      if (failedOrderId) {
+        const order = await Order.findById(failedOrderId);
+        if (order && order.paymentStatus === 'pending') {
+          order.paymentStatus         = 'failed';
+          order.razorpayPaymentStatus = 'failed';
+          order.trackingHistory.push({ status: 'pending', message: 'Payment failed via Razorpay webhook' });
+          await order.save();
+        }
+      }
+      break;
+    }
+    default:
+      break;
+  }
+
+  res.json({ received: true });
+});
+
+// ============ ORDER SUCCESS PAGE ============
+
+
 const getOrderSuccess = asyncHandler(async (req, res) => {
   const order = await Order.findOne({ _id: req.params.orderId, user: req.session?.userId })
     .populate('items.product', 'name images')
@@ -475,6 +677,10 @@ const buyNow = asyncHandler(async (req, res) => {
 module.exports = {
   getCheckoutPage,
   placeOrder,
+  verifyPayment,
+  failPayment,
+  retryPayment,
+  razorpayWebhook,
   getOrderSuccess,
   buyNow,
 };
