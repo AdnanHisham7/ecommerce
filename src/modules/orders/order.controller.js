@@ -23,7 +23,6 @@ const razorpay = new Razorpay({
 // they are fetched fresh on every request rather than cached as module constants.
 
 // ============ CHECKOUT PAGE ============
-
 const getCheckoutPage = asyncHandler(async (req, res) => {
   const commerce = await Setting.getCommerceSettings();
   const SHIPPING_FREE_THRESHOLD = commerce.freeShippingThreshold;
@@ -147,8 +146,6 @@ async function deductWallet(user, amount, description, orderId) {
 }
 
 // ============ PLACE ORDER ============
-
-
 const placeOrder = asyncHandler(async (req, res) => {
   const { addressId, paymentMethod, useWallet, walletAmount, newAddress } = req.body;
 
@@ -408,8 +405,6 @@ const placeOrder = asyncHandler(async (req, res) => {
 });
 
 // ============ VERIFY RAZORPAY PAYMENT ============
-
-
 const verifyPayment = asyncHandler(async (req, res) => {
   const { orderId, razorpayPaymentId, razorpayOrderId, razorpaySignature } = req.body;
 
@@ -478,8 +473,6 @@ const verifyPayment = asyncHandler(async (req, res) => {
 });
 
 // ============ FAIL PAYMENT (called from frontend on dismiss / payment.failed event) ============
-
-
 const failPayment = asyncHandler(async (req, res) => {
   const { orderId, reason } = req.body;
   if (!orderId) return res.json({ success: false });
@@ -499,8 +492,6 @@ const failPayment = asyncHandler(async (req, res) => {
 });
 
 // ============ RETRY PAYMENT ============
-
-
 const retryPayment = asyncHandler(async (req, res) => {
   const order = await Order.findOne({ _id: req.params.id, user: req.session?.userId });
   if (!order) throw ApiError.notFound('Order not found');
@@ -533,8 +524,6 @@ const retryPayment = asyncHandler(async (req, res) => {
 });
 
 // ============ RAZORPAY WEBHOOK ============
-
-
 const razorpayWebhook = asyncHandler(async (req, res) => {
   const webhookSecret = env.razorpay.webhookSecret;
   if (webhookSecret) {
@@ -610,8 +599,6 @@ const razorpayWebhook = asyncHandler(async (req, res) => {
 });
 
 // ============ ORDER SUCCESS PAGE ============
-
-
 const getOrderSuccess = asyncHandler(async (req, res) => {
   const order = await Order.findOne({ _id: req.params.orderId, user: req.session?.userId })
     .populate('items.product', 'name images')
@@ -621,8 +608,288 @@ const getOrderSuccess = asyncHandler(async (req, res) => {
 });
 
 // ============ ORDER LIST ============
+const getOrders = asyncHandler(async (req, res) => {
+  const { page = 1, status } = req.query;
+  const user = await User.findById(req.session?.userId);
+  if (!user) throw ApiError.unauthorized('Please log in to view your orders');
 
+  const filter = { user: req.session?.userId };
+  if (status) filter.orderStatus = status;
 
+  const skip = (parseInt(page) - 1) * 10;
+  const [orders, total] = await Promise.all([
+    Order.find(filter).sort({ createdAt: -1 }).skip(skip).limit(10).lean(),
+    Order.countDocuments(filter),
+  ]);
+
+  res.render('user/orders', {
+    title: 'My Orders',
+    orders,
+    pagination: { page: parseInt(page), totalPages: Math.ceil(total / 10), total },
+    filterStatus: status,
+    currentUser: user,
+  });
+});
+
+// ============ ORDER DETAIL ============
+const getOrderDetail = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.session?.userId);
+  if (!user) throw ApiError.unauthorized('Please log in to view your orders');
+
+  const order = await Order.findOne({ _id: req.params.id, user: req.session?.userId })
+    .populate('items.product', 'name images slug')
+    .lean();
+  if (!order) throw ApiError.notFound('Order not found');
+  res.render('user/order-detail', { title: `Order #${order.orderNumber}`, order, currentUser: user });
+});
+
+// ============ CANCEL ORDER ============
+const cancelOrder = asyncHandler(async (req, res) => {
+  const { reason, itemId } = req.body;
+  const order = await Order.findOne({ _id: req.params.id, user: req.session?.userId });
+  if (!order) throw ApiError.notFound('Order not found');
+
+  const commerce = await Setting.getCommerceSettings();
+  const SHIPPING_FREE_THRESHOLD = commerce.freeShippingThreshold;
+  const SHIPPING_CHARGE = commerce.shippingCost;
+
+  // ── BLOCK: COD orders already paid cannot be cancelled ──
+  if (order.paymentMethod === 'cod' && order.paymentStatus === 'paid') {
+    throw ApiError.badRequest('This order has already been paid and cannot be cancelled');
+  }
+
+  const cancellableStatuses = ['pending', 'confirmed'];
+  if (!cancellableStatuses.includes(order.orderStatus) && !itemId) {
+    throw ApiError.badRequest('Order cannot be cancelled at this stage');
+  }
+
+  async function restoreItemStock(item) {
+    const product = await Product.findById(item.product);
+    if (!product) return;
+    if (item.variant?.variantId) {
+      const skuVariant = product.variants.id(item.variant.variantId);
+      if (skuVariant) skuVariant.stock += item.quantity;
+    } else {
+      product.stock += item.quantity;
+    }
+    product.salesCount = Math.max(0, (product.salesCount || 0) - item.quantity);
+    await product.save();
+  }
+
+  async function recalculateTotals(ord) {
+    const activeItems = ord.items.filter((i) => i.itemStatus === 'active');
+    const newSubtotal = activeItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
+    const newShipping = newSubtotal >= SHIPPING_FREE_THRESHOLD ? 0 : SHIPPING_CHARGE;
+
+    let newCouponDiscount = 0;
+    if (ord.appliedCoupon && newSubtotal > 0) {
+      const coupon = await Coupon.findById(ord.appliedCoupon);
+      if (coupon) newCouponDiscount = coupon.calculateDiscount(newSubtotal);
+    } else if (ord.couponDiscount > 0 && newSubtotal > 0) {
+      const proportion = newSubtotal / (ord.subtotal || newSubtotal);
+      newCouponDiscount = parseFloat((ord.couponDiscount * proportion).toFixed(2));
+    }
+    if (newSubtotal === 0) newCouponDiscount = 0;
+
+    // Gross order value (before any payment deduction)
+    const newGross = parseFloat((newSubtotal + newShipping - newCouponDiscount).toFixed(2));
+
+    if (ord.paymentMethod === 'cod' && (ord.walletAmountUsed || 0) > 0) {
+      // ── COD + wallet mental model ──
+      // The COD amount is a FIXED commitment — the customer came prepared with that cash.
+      // It never decreases due to item cancellations; only the wallet portion adjusts.
+      //
+      // Formula:
+      //   originalCodDue  = what was stored as totalAmount at order time (the cash they owe)
+      //   newWalletNeeded = newGross - originalCodDue  (wallet covers the gap above COD)
+      //
+      // Clamp newWalletNeeded to [0, originalWallet]:
+      //   • Can't go negative — if newGross < originalCodDue, wallet = 0, COD covers remainder
+      //   • Can't exceed originalWallet — we only ever refund wallet, never re-deduct more
+      //
+      // Edge case: newGross < originalCodDue (cheap items remain, less than the COD commitment)
+      //   → newWalletNeeded = 0, newCodDue = newGross  (customer only pays what's left, not more)
+
+      const originalCodDue = ord.totalAmount || 0;      // fixed COD commitment
+      const originalWallet = ord.walletAmountUsed || 0;
+
+      let newWalletNeeded = parseFloat((newGross - originalCodDue).toFixed(2));
+      let newCodDue;
+
+      if (newWalletNeeded < 0) {
+        // Remaining order is cheaper than the COD commitment — cap COD at newGross
+        newWalletNeeded = 0;
+        newCodDue = newGross;
+      } else if (newWalletNeeded > originalWallet) {
+        // Guard: should never happen during cancellation, but clamp for safety
+        newWalletNeeded = originalWallet;
+        newCodDue = parseFloat((newGross - newWalletNeeded).toFixed(2));
+      } else {
+        newCodDue = parseFloat((newGross - newWalletNeeded).toFixed(2));
+      }
+
+      // Final safety clamp — nothing can go below zero
+      newWalletNeeded = Math.max(0, parseFloat(newWalletNeeded.toFixed(2)));
+      newCodDue = Math.max(0, parseFloat(newCodDue.toFixed(2)));
+
+      ord.subtotal         = newSubtotal;
+      ord.shippingCharge   = newShipping;
+      ord.couponDiscount   = newCouponDiscount;
+      ord.walletAmountUsed = newWalletNeeded;  // updated so further cancellations use the right base
+      ord.totalAmount      = newCodDue;        // what the customer still owes in cash at the door
+    } else {
+      // Razorpay / wallet-only: totalAmount = gross minus wallet (0 for wallet-only)
+      const newTotal = parseFloat(
+        Math.max(0, newGross - (ord.walletAmountUsed || 0)).toFixed(2)
+      );
+      ord.subtotal       = newSubtotal;
+      ord.shippingCharge = newShipping;
+      ord.couponDiscount = newCouponDiscount;
+      ord.totalAmount    = newTotal;
+    }
+  }
+
+  const isCodOrder = order.paymentMethod === 'cod';
+  const isPaidNonCod = order.paymentStatus === 'paid' && !isCodOrder;
+
+  let itemsToRestoreStock = [];
+  let refundAmount = 0;
+
+  if (itemId) {
+    const item = order.items.id(itemId);
+    if (!item || item.itemStatus !== 'active') {
+      throw ApiError.badRequest('Item cannot be cancelled');
+    }
+
+    const itemTotal = parseFloat((item.price * item.quantity).toFixed(2));
+
+    // ✅ Capture BEFORE mutating anything
+    const originalOrderTotal = parseFloat(
+      (order.subtotal + order.shippingCharge - order.couponDiscount).toFixed(2)
+    );
+    const originalWallet = order.walletAmountUsed || 0;
+
+    item.itemStatus   = 'cancelled';
+    item.cancelReason = reason;
+    item.cancelledAt  = new Date();
+    itemsToRestoreStock.push(item);
+
+    // ✅ Mutate totals AFTER reading originals
+    await recalculateTotals(order);
+
+    // Calculate refund based on how walletAmountUsed changed
+    if (isPaidNonCod) {
+      // Razorpay (paid): full item value back to wallet
+      refundAmount = itemTotal;
+    } else if (isCodOrder && originalWallet > 0) {
+      // COD+wallet: refund = how much wallet was freed up by this cancellation
+      // recalculateTotals already updated order.walletAmountUsed to the new (lower) value
+      const newWallet = order.walletAmountUsed || 0;
+      refundAmount = parseFloat((originalWallet - newWallet).toFixed(2));
+    }
+
+    const allCancelled = order.items.every((i) => i.itemStatus === 'cancelled');
+    if (allCancelled) {
+      order.orderStatus  = 'cancelled';
+      order.cancelReason = 'All items cancelled';
+      order.cancelledAt  = new Date();
+      order.trackingHistory.push({ status: 'cancelled', message: 'All items cancelled by customer' });
+    }
+  } else {
+    // ── Full order cancellation ──
+    // Capture totals BEFORE zeroing out
+    const originalSubtotal     = order.subtotal || 0;
+    const originalShipping     = order.shippingCharge || 0;
+    const originalCoupon       = order.couponDiscount || 0;
+    const originalWallet       = order.walletAmountUsed || 0;
+    const originalTotal        = order.totalAmount || 0; // razorpay/cod collected amount
+
+    order.orderStatus  = 'cancelled';
+    order.cancelReason = reason;
+    order.cancelledAt  = new Date();
+    order.cancelledBy  = req.session?.userId;
+    order.items.forEach((i) => {
+      if (i.itemStatus === 'active') {
+        i.itemStatus   = 'cancelled';
+        i.cancelReason = reason;
+        i.cancelledAt  = new Date();
+        itemsToRestoreStock.push(i);
+      }
+    });
+    order.trackingHistory.push({ status: 'cancelled', message: `Order cancelled: ${reason}` });
+
+    // Calculate refund amount
+    if (isPaidNonCod) {
+      // Refund everything: wallet portion + razorpay portion (both back to wallet)
+      refundAmount = parseFloat((originalWallet + originalTotal).toFixed(2));
+    } else if (isCodOrder && originalWallet > 0) {
+      // COD: only wallet portion is refundable (cash not yet collected, or blocked above if paid)
+      refundAmount = originalWallet;
+    }
+
+    // Zero everything out
+    order.subtotal       = 0;
+    order.shippingCharge = 0;
+    order.couponDiscount = 0;
+    order.totalAmount    = 0;
+  }
+
+  // ── Restore stock ──
+  for (const item of itemsToRestoreStock) {
+    await restoreItemStock(item);
+  }
+
+  // ── Issue refund to wallet ──
+  if (refundAmount > 0) {
+    const user = await User.findById(order.user);
+    await user.addWalletTransaction(
+      'credit',
+      refundAmount,
+      `Refund for ${itemId ? 'item cancellation' : 'order cancellation'} #${order.orderNumber}`,
+      order._id
+    );
+    order.paymentStatus = itemId ? order.paymentStatus : 'refunded';
+    order.refundAmount  = parseFloat(((order.refundAmount || 0) + refundAmount).toFixed(2));
+    order.refundedAt    = new Date();
+  }
+
+  await order.save();
+
+  const cancelledUser = await User.findById(order.user);
+  if (cancelledUser) {
+    await notify.orderCancelled(cancelledUser, order, order.refundAmount || 0);
+    if (order.refundAmount > 0) {
+      await notify.walletCredit(cancelledUser, order.refundAmount, `Refund for order #${order.orderNumber}`);
+    }
+  }
+
+  return res.status(200).json({
+    success: true,
+    message: itemId ? 'Item cancelled successfully' : 'Order cancelled successfully',
+    redirectUrl: `/orders/${order._id}`,
+  });
+});
+
+// ============ DOWNLOAD INVOICE ============
+const downloadInvoice = asyncHandler(async (req, res) => {
+  const order = await Order.findOne({ _id: req.params.id, user: req.session?.userId })
+    .populate('user', 'name email')
+    .lean();
+  if (!order) throw ApiError.notFound('Order not found');
+  if (order.paymentStatus !== 'paid' && order.paymentMethod !== 'cod') {
+    throw ApiError.badRequest('Invoice not available for unpaid orders');
+  }
+  generateInvoice(order, res);
+});
+
+// ============ BUY NOW ============
+// Logged-in users: replaces their cart with just this item and goes straight to
+// checkout (fast single-item purchase flow, unchanged from before).
+// Guests: rather than interrupting them with a login wall, the item is added to
+// their session-backed guest cart (kept alongside anything else already there)
+// and they're sent to /cart so they can keep browsing/adding more. They only hit
+// the login page once they click "Proceed to Checkout" — at which point their
+// full guest cart is merged into their account (see auth.controller.js).
 const buyNow = asyncHandler(async (req, res) => {
   const { productId, quantity = 1, colorId, sizeId } = req.body;
 
@@ -673,14 +940,17 @@ const buyNow = asyncHandler(async (req, res) => {
   res.json({ success: true, redirectUrl: '/checkout' });
 });
 
-
 module.exports = {
   getCheckoutPage,
   placeOrder,
   verifyPayment,
   failPayment,
-  retryPayment,
   razorpayWebhook,
   getOrderSuccess,
+  getOrders,
+  getOrderDetail,
+  cancelOrder,
+  retryPayment,
+  downloadInvoice,
   buyNow,
 };

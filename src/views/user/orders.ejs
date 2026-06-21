@@ -1,0 +1,111 @@
+<% layout('layouts/user') %>
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-5 md:py-8">
+  <h1 class="text-3xl font-black dark:text-white mb-6">My <span class="text-accent-500">Orders</span></h1>
+
+  <!-- Filter tabs -->
+  <div class="flex gap-2 mb-6 overflow-x-auto pb-1">
+    <% ['','pending','confirmed','packed','dispatched','delivered','cancelled','returned','refunded'].forEach(s => { %>
+    <a href="/orders<%= s ? '?status='+s : '' %>" class="px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all <%= filterStatus === s || (!filterStatus && !s) ? 'bg-accent-500 text-white shadow-lg' : 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-accent-400' %>">
+      <%= s ? s.charAt(0).toUpperCase() + s.slice(1) : 'All Orders' %>
+    </a>
+    <% }) %>
+  </div>
+
+  <% if (orders.length) { %>
+  <div class="space-y-4">
+    <% orders.forEach(order => {
+      const statusColors = { pending:'text-yellow-500 bg-yellow-50 dark:bg-yellow-900/20', confirmed:'text-blue-500 bg-blue-50 dark:bg-blue-900/20', packed:'text-teal-500 bg-teal-50 dark:bg-teal-900/20', dispatched:'text-indigo-500 bg-indigo-50 dark:bg-indigo-900/20', delivered:'text-green-500 bg-green-50 dark:bg-green-900/20', cancelled:'text-red-500 bg-red-50 dark:bg-red-900/20', returned:'text-orange-500 bg-orange-50 dark:bg-orange-900/20', refunded:'text-gray-500 bg-gray-100 dark:bg-gray-800' };
+    %>
+    <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+      <div class="flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
+        <div class="flex items-center gap-4">
+          <div><p class="text-xs text-gray-500 dark:text-gray-400">Order ID</p><p class="font-bold text-sm dark:text-white">#<%= order.orderNumber %></p></div>
+          <div class="hidden md:block"><p class="text-xs text-gray-500 dark:text-gray-400">Date</p><p class="text-sm dark:text-gray-300"><%= new Date(order.createdAt).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}) %></p></div>
+          <div><p class="text-xs text-gray-500 dark:text-gray-400">Total</p><p class="font-bold text-sm dark:text-white">₹<%= order.totalAmount.toLocaleString('en-IN') %></p></div>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="text-xs font-semibold px-2.5 py-1 rounded-full capitalize <%= statusColors[order.orderStatus] || 'text-gray-500 bg-gray-100' %>"><%= order.orderStatus?.replace(/_/g,' ') %></span>
+          <a href="/orders/<%= order._id %>" class="text-accent-500 hover:text-accent-600 text-xs font-semibold">View →</a>
+        </div>
+      </div>
+      <div class="p-4 flex gap-3 overflow-x-auto">
+        <% order.items?.slice(0,4).forEach(item => { %>
+        <div class="flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800">
+          <img src="<%= item.productImage || '/images/placeholder.png' %>" class="w-full h-full object-cover" title="<%= item.productName %>"/>
+        </div>
+        <% }) %>
+        <% if (order.items?.length > 4) { %>
+        <div class="flex-shrink-0 w-16 h-16 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-sm font-bold text-gray-500">+<%= order.items.length-4 %></div>
+        <% } %>
+      </div>
+      <div class="px-4 pb-4 flex gap-2 flex-wrap">
+        <a href="/orders/<%= order._id %>" class="text-xs border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 rounded-lg px-3 py-1.5 hover:border-accent-400 hover:text-accent-500 transition-all">View Details</a>
+        <% if (order.orderStatus === 'delivered' && order.paymentStatus === 'paid') { %>
+        <a href="/orders/<%= order._id %>/invoice" class="text-xs border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 rounded-lg px-3 py-1.5 hover:border-accent-400 hover:text-accent-500 transition-all flex items-center gap-1"><i class="fa-solid fa-file-pdf text-red-500 text-xs"></i>Invoice</a>
+        <% } %>
+        <% if (['pending','confirmed'].includes(order.orderStatus)) { %>
+        <button onclick="cancelOrder('<%= order._id %>')" class="text-xs border border-red-200 dark:border-red-900 text-red-500 rounded-lg px-3 py-1.5 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all">Cancel</button>
+        <% } %>
+      </div>
+    </div>
+    <% }) %>
+  </div>
+
+  <!-- Pagination -->
+  <% if (pagination.totalPages > 1) { %>
+  <div class="flex justify-center gap-2 mt-8">
+    <% for(let p=1; p<=pagination.totalPages; p++) { %>
+    <a href="?page=<%= p %><%= filterStatus ? '&status='+filterStatus : '' %>" class="w-10 h-10 flex items-center justify-center rounded-lg text-sm font-bold transition-all <%= p===pagination.page ? 'bg-accent-500 text-white' : 'border border-gray-200 dark:border-gray-700 dark:text-gray-400 hover:border-accent-500' %>"><%= p %></a>
+    <% } %>
+  </div>
+  <% } %>
+
+  <% } else { %>
+  <div class="text-center py-24"><div class="text-7xl mb-4">📦</div><h2 class="text-xl font-bold dark:text-white mb-2">No orders yet</h2><p class="text-gray-500 dark:text-gray-400 mb-6">You haven't placed any orders.</p><a href="/shop" class="btn-primary inline-flex items-center gap-2 px-6 py-3 rounded-xl font-bold">Start Shopping <i class="fa-solid fa-arrow-right"></i></a></div>
+  <% } %>
+</div>
+
+<script>
+async function cancelOrder(id) {
+  const reason = prompt('Reason for cancellation:');
+  if (!reason) return;
+  const r = await fetch(`/orders/${id}/cancel`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ reason }) });
+  if (r.redirected) window.location.href = r.url;
+  else { const d = await r.json(); if (d.message) showToast(d.message, 'info'); window.location.reload(); }
+}
+
+async function retryPayment(orderId) {
+  showToast('Preparing payment...', 'info');
+  const res = await fetch(`/orders/${orderId}/retry-payment`, { method: 'POST' });
+  const data = await res.json();
+  if (data.success) {
+    const options = {
+      key: data.razorpayKeyId,
+      amount: data.amount,
+      currency: 'INR',
+      name: '<%= brand.name %>',
+      order_id: data.razorpayOrderId,
+      handler: async function(response) {
+        const verifyRes = await fetch('/checkout/verify-payment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            orderId: data.orderId,
+            razorpayPaymentId: response.razorpay_payment_id,
+            razorpayOrderId: response.razorpay_order_id,
+            razorpaySignature: response.razorpay_signature
+          })
+        });
+        const verifyData = await verifyRes.json();
+        if (verifyData.success) window.location.reload();
+        else showToast('Verification failed', 'error');
+      }
+    };
+    const rzp = new Razorpay(options);
+    rzp.open();
+  } else {
+    showToast(data.message || 'Retry failed', 'error');
+  }
+}
+
+</script>

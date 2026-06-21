@@ -42,6 +42,10 @@ router.post('/orders/:id/retry-payment', requireAuth, orderCtrl.retryPayment);
 
 // ---- Razorpay Webhook (raw body) ----
 router.post('/webhook/razorpay', orderCtrl.razorpayWebhook);
+router.get('/orders', requireAuth, orderCtrl.getOrders);
+router.get('/orders/:id', requireAuth, orderCtrl.getOrderDetail);
+router.post('/orders/:id/cancel', requireAuth, orderCtrl.cancelOrder);
+router.get('/orders/:id/invoice', requireAuth, orderCtrl.downloadInvoice);
 
 // ---- Wishlist ----
 router.get('/wishlist', requireAuth, userCtrl.getWishlist);
