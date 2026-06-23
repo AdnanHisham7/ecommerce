@@ -576,6 +576,179 @@ const deleteCategory = asyncHandler(async (req, res) => {
 // ==================== USERS ====================
 
 
+const getUsers = asyncHandler(async (req, res) => {
+  const { page = 1, search, role, status } = req.query;
+  const filter = {};
+  if (search) filter.$or = [{ name: { $regex: search, $options: 'i' } }, { email: { $regex: search, $options: 'i' } }];
+  if (role) filter.role = role;
+  if (status === 'blocked') filter.isBlocked = true;
+  if (status === 'active') filter.isBlocked = false;
+
+  const skip = (parseInt(page) - 1) * 20;
+  const [users, total] = await Promise.all([
+    User.find(filter).sort({ createdAt: -1 }).skip(skip).limit(20).lean(),
+    User.countDocuments(filter),
+  ]);
+
+  res.render('admin/users/index', {
+    title: 'Users',
+    users,
+    pagination: { page: parseInt(page), totalPages: Math.ceil(total / 20), total },
+    filters: { search, role, status },
+  });
+});
+
+
+const getUserDetail = asyncHandler(async (req, res) => {
+  const [user, orders] = await Promise.all([
+    User.findById(req.params.id).lean(),
+    Order.find({ user: req.params.id }).sort({ createdAt: -1 }).limit(10).lean(),
+  ]);
+  if (!user) throw ApiError.notFound('User not found');
+  const totalSpent = orders.filter((o) => o.paymentStatus === 'paid').reduce((s, o) => s + o.totalAmount, 0);
+  res.render('admin/users/detail', { title: `User: ${user.name}`, user, orders, totalSpent });
+});
+
+
+const toggleUserBlock = asyncHandler(async (req, res) => {
+  const { reason } = req.body;
+  const user = await User.findById(req.params.id);
+  if (!user) throw ApiError.notFound('User not found');
+  if (user.role === 'admin') throw ApiError.forbidden('Cannot block admin');
+
+  user.isBlocked = !user.isBlocked;
+  user.blockReason = user.isBlocked ? reason : undefined;
+  user.blockedAt = user.isBlocked ? new Date() : undefined;
+  await user.save();
+
+  await AuditLog.create({ user: req.user._id, action: user.isBlocked ? 'user_block' : 'user_unblock', resource: 'User', resourceId: user._id, ip: req.ip });
+
+  // Notify user via in-app + push
+  if (user.isBlocked) {
+    await notify.accountBlocked(user);
+  } else {
+    await notify.accountUnblocked(user);
+  }
+
+  res.json({ success: true, isBlocked: user.isBlocked, message: `User ${user.isBlocked ? 'blocked' : 'unblocked'}` });
+});
+
+// ==================== ORDERS ====================
+
+
+const getOrders = asyncHandler(async (req, res) => {
+  const { page = 1, status, paymentStatus, search, from, to } = req.query;
+  const filter = {};
+  if (status) filter.orderStatus = status;
+  if (paymentStatus) filter.paymentStatus = paymentStatus;
+  if (search) filter.$or = [{ orderNumber: { $regex: search, $options: 'i' } }];
+  if (from || to) {
+    filter.createdAt = {};
+    if (from) filter.createdAt.$gte = new Date(from);
+    if (to) filter.createdAt.$lte = new Date(to);
+  }
+
+  const skip = (parseInt(page) - 1) * 20;
+  const [orders, total] = await Promise.all([
+    Order.find(filter).populate('user', 'name email').sort({ createdAt: -1 }).skip(skip).limit(20).lean(),
+    Order.countDocuments(filter),
+  ]);
+
+  res.render('admin/orders/index', {
+    title: 'Orders',
+    orders,
+    pagination: { page: parseInt(page), totalPages: Math.ceil(total / 20), total },
+    filters: { status, paymentStatus, search, from, to },
+  });
+});
+
+
+const getOrderDetail = asyncHandler(async (req, res) => {
+  const order = await Order.findById(req.params.id)
+    .populate('user', 'name email phone')
+    .populate('items.product', 'name images')
+    .lean();
+  if (!order) throw ApiError.notFound('Order not found');
+  res.render('admin/orders/detail', { title: `Order #${order.orderNumber}`, order });
+});
+
+
+const updateOrderStatus = asyncHandler(async (req, res) => {
+  const { status, trackingNumber, message, trackingLink } = req.body;
+  const order = await Order.findById(req.params.id);
+  if (!order) throw ApiError.notFound('Order not found');
+
+  if (trackingLink && !/^https?:\/\//i.test(trackingLink.trim())) {
+    throw ApiError.badRequest('Tracking link must be a valid URL starting with http:// or https://');
+  }
+
+  // Only the statuses requested by the business are supported end-to-end:
+  // pending → confirmed → packed → dispatched → delivered → returned → refunded,
+  // with cancellation possible from pending/confirmed.
+  const validTransitions = {
+    pending:    ['confirmed', 'cancelled'],
+    confirmed:  ['packed', 'cancelled'],
+    packed:     ['dispatched'],
+    dispatched: ['delivered'],
+    delivered:  ['returned'],
+    cancelled:  [],
+    returned:   ['refunded'],
+    refunded:   [],
+  };
+
+  if (!validTransitions[order.orderStatus]?.includes(status)) {
+    throw ApiError.badRequest(`Cannot transition from ${order.orderStatus} to ${status}`);
+  }
+
+  order.orderStatus = status;
+  if (trackingNumber) order.trackingNumber = trackingNumber;
+  if (trackingLink) order.trackingLink = trackingLink.trim();
+  if (status === 'delivered') {
+    order.deliveredAt = new Date();
+  }
+
+  // Handle refund when an order moves to refunded (following a return)
+  let refundAmount = 0;
+  if (status === 'refunded') {
+    if (order.paymentStatus === 'paid' && order.paymentMethod !== 'cod') {
+      refundAmount = order.totalAmount;
+      const customer = await User.findById(order.user);
+      if (customer) {
+        await customer.addWalletTransaction('credit', refundAmount, `Refund for order #${order.orderNumber}`, order._id);
+      }
+      order.paymentStatus = 'refunded';
+      order.refundAmount = refundAmount;
+      order.refundedAt = new Date();
+    }
+  }
+
+  order.trackingHistory.push({
+    status,
+    message: message || `Order ${status}`,
+    trackingNumber: trackingNumber || undefined,
+    trackingLink: trackingLink ? trackingLink.trim() : undefined,
+    updatedBy: req.user._id,
+  });
+  await order.save();
+
+  const user = await User.findById(order.user);
+  if (user) {
+    if (status === 'refunded') {
+      await notify.returnStatus(user, order, 'refunded', refundAmount);
+      if (refundAmount > 0) {
+        await notify.walletCredit(user, refundAmount, `Refund for order #${order.orderNumber}`);
+      }
+    } else {
+      await notify.orderStatus(user, order, status);
+    }
+  }
+
+  res.json({ success: true, message: `Order status updated to ${status}` });
+});
+
+// ==================== COUPONS ====================
+
+
 const getAdminLogin = asyncHandler(async (req, res) => {
   if (req.session?.adminId) return res.redirect('/admin/dashboard');
   res.render('admin/auth/login', { title: 'Admin Login' });
@@ -612,6 +785,115 @@ const adminLogout = asyncHandler(async (req, res) => {
 // ==================== STOCK MANAGEMENT ====================
 
 
+const getPrintPackageSlips = asyncHandler(async (req, res) => {
+  const { orderIds } = req.body;
+  if (!orderIds || !Array.isArray(orderIds) || orderIds.length === 0) {
+    throw ApiError.badRequest('No orders selected');
+  }
+
+  const orders = await Order.find({ _id: { $in: orderIds } }).lean();
+  if (orders.length === 0) throw ApiError.notFound('Orders not found');
+
+  // Precompute the COD-style "amount in words" once per order rather than
+  // re-deriving it inside the EJS template.
+  for (const order of orders) {
+    order.totalAmountInWords = amountToIndianWords(order.totalAmount).toUpperCase();
+  }
+
+  let fromAddressSetting = await Setting.findOne({ key: 'packageSlipFromAddress' });
+  let fromAddress = fromAddressSetting?.value || {
+    company: 'FootballStore', name: 'Admin', addressLine1: '123 Main Street',
+    addressLine2: '', city: 'Mumbai', state: 'Maharashtra', pincode: '400001',
+    country: 'India', phone: '+91 9876543210', email: 'support@footballstore.com',
+    customerId: '',
+  };
+
+  const SLIPS_PER_PAGE = 4;
+  const pages = [];
+  for (let i = 0; i < orders.length; i += SLIPS_PER_PAGE) {
+    pages.push(orders.slice(i, i + SLIPS_PER_PAGE));
+  }
+
+  res.render('admin/orders/print-slips', {
+    title: 'Print Package Slips',
+    pages,
+    fromAddress,
+    layout: false,
+  });
+});
+
+
+// ==================== MARK COD ORDER AS PAID ====================
+
+
+const markCodOrderPaid = asyncHandler(async (req, res) => {
+  const order = await Order.findById(req.params.id);
+  if (!order) throw ApiError.notFound('Order not found');
+  if (order.paymentMethod !== 'cod') {
+    throw ApiError.badRequest('This action is only available for Cash on Delivery orders');
+  }
+  if (order.paymentStatus === 'paid') {
+    throw ApiError.badRequest('Order is already marked as paid');
+  }
+  if (['cancelled', 'refunded'].includes(order.orderStatus)) {
+    throw ApiError.badRequest('Cannot mark a cancelled or refunded order as paid');
+  }
+
+  const commerce = await Setting.getCommerceSettings();
+
+  // ── Recalculate the amount due based ONLY on active (non-cancelled) items ──
+  const activeItems = order.items.filter((i) => i.itemStatus === 'active');
+  if (activeItems.length === 0) {
+    throw ApiError.badRequest('All items in this order have been cancelled. Nothing to collect.');
+  }
+
+  const activeSubtotal = activeItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
+
+  // Re-evaluate shipping
+  const activeShipping = activeSubtotal >= commerce.freeShippingThreshold ? 0 : commerce.shippingCost;
+
+  // Re-calculate coupon discount against the active subtotal
+  let activeCouponDiscount = 0;
+  if (order.appliedCoupon) {
+    const coupon = await Coupon.findById(order.appliedCoupon);
+    if (coupon) {
+      activeCouponDiscount = coupon.calculateDiscount(activeSubtotal);
+    }
+  } else if (order.couponDiscount > 0 && order.subtotal > 0) {
+    // Fall back to proportional scaling
+    const proportion = activeSubtotal / order.subtotal;
+    activeCouponDiscount = parseFloat((order.couponDiscount * proportion).toFixed(2));
+  }
+
+  const effectiveTotal = parseFloat(
+    Math.max(0, activeSubtotal + activeShipping - activeCouponDiscount - (order.walletAmountUsed || 0)).toFixed(2)
+  );
+
+  // Update order totals to reflect the effective (post-cancellation) amounts
+  order.subtotal       = activeSubtotal;
+  order.shippingCharge = activeShipping;
+  order.couponDiscount = activeCouponDiscount;
+  order.totalAmount    = effectiveTotal;
+  order.paidAmount     = effectiveTotal; // record exact amount collected
+  order.paymentStatus  = 'paid';
+  order.paidAt         = new Date();
+  order.trackingHistory.push({
+    status: order.orderStatus,
+    message: `Payment collected ₹${effectiveTotal.toFixed(2)} — marked as paid (COD)`,
+    updatedBy: req.user._id,
+  });
+  await order.save();
+
+  // Notify customer
+  const user = await User.findById(order.user);
+  if (user) {
+    await notify.orderStatus(user, order, order.orderStatus);
+  }
+
+  res.json({ success: true, message: `Order marked as paid — ₹${effectiveTotal.toFixed(2)} collected` });
+});
+
+
 module.exports = {
   getDashboard,
   getProducts,
@@ -638,7 +920,15 @@ module.exports = {
   addCategory,
   updateCategory,
   deleteCategory,
+  getUsers,
+  getUserDetail,
+  toggleUserBlock,
+  getOrders,
+  getOrderDetail,
+  updateOrderStatus,
   getAdminLogin,
   adminLogin,
   adminLogout,
+  getPrintPackageSlips,
+  markCodOrderPaid,
 };

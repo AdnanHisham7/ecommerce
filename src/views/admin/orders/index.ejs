@@ -1,0 +1,261 @@
+<% layout('layouts/admin') %>
+
+<div class="flex items-center justify-between mb-6">
+  <div>
+    <h2 class="text-xl font-bold text-white">Orders</h2>
+    <p class="text-gray-500 text-sm"><%= pagination.total %> total orders</p>
+  </div>
+  <div class="flex items-center gap-2">
+    <a href="/admin/analytics" class="flex items-center gap-2 px-4 py-2 border border-white/10 rounded-xl text-sm text-gray-400 hover:text-gray-200 transition-all">
+      <i class="fa-solid fa-chart-bar text-xs"></i> Analytics
+    </a>
+    <button id="editAddressBtn" class="flex items-center gap-2 px-4 py-2 border border-white/10 rounded-xl text-sm text-gray-400 hover:text-gray-200 transition-all">
+      <i class="fa-solid fa-location-dot text-xs"></i> From Address
+    </button>
+    <button id="printSelectedBtn" class="flex items-center gap-2 px-4 py-2 bg-accent-500 text-primary rounded-xl text-sm font-bold transition-all">
+      <i class="fa-solid fa-print text-xs"></i> Print Selected
+    </button>
+  </div>
+</div>
+
+<!-- Filters (unchanged) -->
+<div class="card p-4 mb-5">
+  <form method="GET" action="/admin/orders" class="flex flex-wrap gap-3">
+    <input type="text" name="search" value="<%= filters.search || '' %>" placeholder="Search order number..." class="flex-1 min-w-[180px] rounded-lg px-3 py-2 text-sm"/>
+    <select name="status" class="rounded-lg px-3 py-2 text-sm">
+      <option value="">All Status</option>
+      <% ['pending','confirmed','packed','dispatched','delivered','cancelled','returned','refunded'].forEach(s => { %>
+      <option value="<%= s %>" <%= filters.status===s?'selected':'' %> class="capitalize"><%= s.replace(/_/g,' ') %></option>
+      <% }) %>
+    </select>
+    <select name="paymentStatus" class="rounded-lg px-3 py-2 text-sm">
+      <option value="">All Payment</option>
+      <% ['pending','paid','failed','refunded'].forEach(s => { %><option value="<%= s %>" <%= filters.paymentStatus===s?'selected':'' %>><%= s %></option><% }) %>
+    </select>
+    <input type="date" name="from" value="<%= filters.from || '' %>" class="rounded-lg px-3 py-2 text-sm"/>
+    <input type="date" name="to" value="<%= filters.to || '' %>" class="rounded-lg px-3 py-2 text-sm"/>
+    <button type="submit" class="bg-accent-500 text-primary px-4 py-2 rounded-lg text-sm font-bold">Filter</button>
+    <a href="/admin/orders" class="px-4 py-2 rounded-lg text-sm text-gray-400 hover:text-gray-200 border border-white/10">Clear</a>
+  </form>
+</div>
+
+<div class="card overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-xs text-gray-500 uppercase tracking-wider border-b border-white/5">
+          <th class="text-left px-5 py-3">
+            <input type="checkbox" id="selectAllOrders" class="rounded bg-gray-800 border-gray-600">
+          </th>
+          <th class="text-left px-5 py-3">Order</th>
+          <th class="text-left px-5 py-3">Customer</th>
+          <th class="text-left px-5 py-3">Items</th>
+          <th class="text-left px-5 py-3">Amount</th>
+          <th class="text-left px-5 py-3">Payment</th>
+          <th class="text-left px-5 py-3">Status</th>
+          <th class="text-left px-5 py-3">Date</th>
+          <th class="text-left px-5 py-3">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-white/5">
+        <% orders.forEach(order => {
+          const statusColors = { pending:'bg-yellow-500/20 text-yellow-400', confirmed:'bg-blue-500/20 text-blue-400', packed:'bg-teal-500/20 text-teal-400', dispatched:'bg-indigo-500/20 text-indigo-400', delivered:'bg-green-500/20 text-green-400', cancelled:'bg-red-500/20 text-red-400', returned:'bg-orange-500/20 text-orange-400', refunded:'bg-gray-500/20 text-gray-400' };
+          const payColors = { pending:'bg-yellow-500/20 text-yellow-400', paid:'bg-green-500/20 text-green-400', failed:'bg-red-500/20 text-red-400', refunded:'bg-gray-500/20 text-gray-400' };
+        %>
+        <tr class="hover:bg-white/5 transition-colors">
+          <td class="px-5 py-3">
+            <input type="checkbox" class="order-checkbox rounded bg-gray-800 border-gray-600" value="<%= order._id %>">
+          </td>
+          <td class="px-5 py-3">
+            <a href="/admin/orders/<%= order._id %>" class="text-accent-400 font-bold hover:underline">#<%= order.orderNumber %></a>
+          </td>
+          <td class="px-5 py-3">
+            <p class="text-gray-300 font-medium"><%= order.user?.name || 'N/A' %></p>
+            <p class="text-xs text-gray-500 truncate max-w-[120px]"><%= order.user?.email || '' %></p>
+          </td>
+          <td class="px-5 py-3 text-gray-400"><%= order.items?.length || 0 %> item(s)</td>
+          <td class="px-5 py-3 font-bold text-white">₹<%= order.totalAmount.toLocaleString('en-IN') %></td>
+          <td class="px-5 py-3">
+            <div class="space-y-1">
+              <span class="badge <%= payColors[order.paymentStatus] || 'bg-gray-500/20 text-gray-400' %> capitalize"><%= order.paymentStatus %></span>
+              <p class="text-xs text-gray-600 capitalize"><%= order.paymentMethod %></p>
+            </div>
+           </td>
+          <td class="px-5 py-3">
+            <span class="badge <%= statusColors[order.orderStatus] || 'bg-gray-500/20 text-gray-400' %> capitalize"><%= order.orderStatus?.replace(/_/g,' ') %></span>
+           </td>
+          <td class="px-5 py-3 text-gray-500 text-xs whitespace-nowrap">
+            <%= new Date(order.createdAt).toLocaleDateString('en-IN', {day:'numeric',month:'short',year:'numeric'}) %>
+           </td>
+          <td class="px-5 py-3">
+            <a href="/admin/orders/<%= order._id %>" class="p-2 hover:bg-white/10 rounded-lg text-blue-400 hover:text-blue-300 transition-colors inline-flex" title="View">
+              <i class="fa-solid fa-eye text-sm"></i>
+            </a>
+            <% if (order.paymentMethod === 'cod' && order.paymentStatus !== 'paid' && !['cancelled','refunded'].includes(order.orderStatus)) { %>
+            <button onclick="markCodPaid('<%= order._id %>', this)" class="p-2 hover:bg-white/10 rounded-lg text-green-400 hover:text-green-300 transition-colors inline-flex" title="Mark as Paid">
+              <i class="fa-solid fa-money-bill-check text-sm"></i>
+            </button>
+            <% } %>
+           </td>
+        </tr>
+        <% }) %>
+        <% if (!orders.length) { %>
+        <tr><td colspan="9" class="px-5 py-12 text-center text-gray-500"><i class="fa-solid fa-cart-shopping text-2xl mb-2 block"></i>No orders found</td></tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+
+  <% if (pagination.totalPages > 1) { %>
+  <div class="flex items-center justify-between px-5 py-4 border-t border-white/5">
+    <p class="text-xs text-gray-500">Page <%= pagination.page %> of <%= pagination.totalPages %> (<%= pagination.total %> orders)</p>
+    <div class="flex gap-2">
+      <% for(let p=Math.max(1,pagination.page-2); p<=Math.min(pagination.totalPages,pagination.page+2); p++) { %>
+      <a href="?<%= new URLSearchParams({...filters, page:p}).toString() %>" class="w-8 h-8 flex items-center justify-center rounded-lg text-xs font-bold transition-all <%= p===pagination.page ? 'bg-accent-500 text-primary' : 'text-gray-400 hover:bg-white/10' %>"><%= p %></a>
+      <% } %>
+    </div>
+  </div>
+  <% } %>
+</div>
+
+<!-- Hidden Form for Print -->
+<form id="printForm" method="POST" action="/admin/orders/print-package-slips" target="_blank">
+  <div id="orderIdsContainer"></div>
+</form>
+
+<!-- Modal for Editing From Address -->
+<div id="addressModal" class="fixed inset-0 flex items-center justify-center z-50 hidden transparent-black backdrop-blur-sm transition-all">
+  <div class="transparent-black rounded-2xl p-6 w-full max-w-2xl border border-white/10 shadow-2xl">
+    <div class="flex justify-between items-center mb-5">
+      <h3 class="text-xl font-bold text-white">Edit From Address (Package Slip)</h3>
+      <button id="closeModalBtn" class="text-gray-400 hover:text-gray-200">&times;</button>
+    </div>
+    <form id="addressForm" class="space-y-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div><label class="block text-sm text-gray-400 mb-1">Company</label><input type="text" name="company" class="w-full rounded-lg px-3 py-2 text-sm"></div>
+        <div><label class="block text-sm text-gray-400 mb-1">Contact Name</label><input type="text" name="name" class="w-full rounded-lg px-3 py-2 text-sm"></div>
+        <div class="md:col-span-2"><label class="block text-sm text-gray-400 mb-1">Address Line 1</label><input type="text" name="addressLine1" class="w-full rounded-lg px-3 py-2 text-sm" required></div>
+        <div class="md:col-span-2"><label class="block text-sm text-gray-400 mb-1">Address Line 2</label><input type="text" name="addressLine2" class="w-full rounded-lg px-3 py-2 text-sm"></div>
+        <div><label class="block text-sm text-gray-400 mb-1">City</label><input type="text" name="city" class="w-full rounded-lg px-3 py-2 text-sm" required></div>
+        <div><label class="block text-sm text-gray-400 mb-1">State</label><input type="text" name="state" class="w-full rounded-lg px-3 py-2 text-sm" required></div>
+        <div><label class="block text-sm text-gray-400 mb-1">Pincode</label><input type="text" name="pincode" class="w-full rounded-lg px-3 py-2 text-sm" required></div>
+        <div><label class="block text-sm text-gray-400 mb-1">Country</label><input type="text" name="country" class="w-full rounded-lg px-3 py-2 text-sm" required></div>
+        <div><label class="block text-sm text-gray-400 mb-1">Phone</label><input type="text" name="phone" class="w-full rounded-lg px-3 py-2 text-sm" required></div>
+        <div><label class="block text-sm text-gray-400 mb-1">Email</label><input type="email" name="email" class="w-full rounded-lg px-3 py-2 text-sm" required></div>
+        <div class="md:col-span-2">
+          <label class="block text-sm text-gray-400 mb-1">Customer ID</label>
+          <input type="text" name="customerId" inputmode="numeric" pattern="\d*" placeholder="e.g. 518919161368461" class="w-full rounded-lg px-3 py-2 text-sm">
+          <p class="text-xs text-gray-500 mt-1">Numeric ID printed on every package slip (e.g. "CUSTOMER ID: 518919161368461"). Digits only.</p>
+        </div>
+      </div>
+      <div class="flex justify-end gap-3 pt-4">
+        <button type="button" id="cancelModalBtn" class="px-4 py-2 border border-white/10 rounded-lg text-gray-400 hover:text-gray-200">Cancel</button>
+        <button type="submit" class="px-4 py-2 bg-accent-500 text-primary rounded-lg font-bold">Save Address</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  // ----- SELECT ALL / CHECKBOXES -----
+  const selectAllCheckbox = document.getElementById('selectAllOrders');
+  const orderCheckboxes = document.querySelectorAll('.order-checkbox');
+  
+  if (selectAllCheckbox) {
+    selectAllCheckbox.addEventListener('change', function(e) {
+      orderCheckboxes.forEach(cb => cb.checked = e.target.checked);
+    });
+  }
+  
+  // ----- PRINT SELECTED -----
+  const printBtn = document.getElementById('printSelectedBtn');
+  const printForm = document.getElementById('printForm');
+  const orderIdsContainer = document.getElementById('orderIdsContainer');
+  
+  printBtn?.addEventListener('click', function() {
+    const selected = Array.from(orderCheckboxes).filter(cb => cb.checked).map(cb => cb.value);
+    if (selected.length === 0) {
+      showToast('Please select at least one order', 'error');
+      return;
+    }
+    // Clear previous inputs
+    orderIdsContainer.innerHTML = '';
+    selected.forEach(id => {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = 'orderIds[]';
+      input.value = id;
+      orderIdsContainer.appendChild(input);
+    });
+    printForm.submit();
+  });
+  
+  // ----- ADDRESS MODAL -----
+  const modal = document.getElementById('addressModal');
+  const editBtn = document.getElementById('editAddressBtn');
+  const closeModal = document.getElementById('closeModalBtn');
+  const cancelModal = document.getElementById('cancelModalBtn');
+  const addressForm = document.getElementById('addressForm');
+  
+  function openModal() { modal.classList.remove('hidden'); }
+  function closeModalFn() { modal.classList.add('hidden'); }
+  
+  editBtn?.addEventListener('click', async () => {
+    openModal();
+    // Fetch current address
+    try {
+      const res = await fetch('/admin/settings/package-slip-address');
+      const data = await res.json();
+      if (data.success) {
+        const addr = data.address;
+        for (let key in addr) {
+          const field = addressForm.querySelector(`[name="${key}"]`);
+          if (field) field.value = addr[key] || '';
+        }
+      }
+    } catch (err) { console.error(err); }
+  });
+  
+  closeModal?.addEventListener('click', closeModalFn);
+  cancelModal?.addEventListener('click', closeModalFn);
+  modal?.addEventListener('click', (e) => { if (e.target === modal) closeModalFn(); });
+  
+  addressForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(addressForm);
+    const address = Object.fromEntries(formData.entries());
+
+    if (address.customerId && !/^\d+$/.test(address.customerId.trim())) {
+      showToast('Customer ID must contain digits only', 'error');
+      return;
+    }
+
+    try {
+      const res = await fetch('/admin/settings/package-slip-address', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast('From address saved successfully', 'success');
+        closeModalFn();
+      } else {
+        showToast('Failed to save address', 'error');
+      }
+    } catch (err) {
+      showToast('Error saving address', 'error');
+    }
+  });
+
+async function markCodPaid(orderId, btn) {
+  if (!confirm('Mark this COD order as paid?')) return;
+  btn.disabled = true;
+  try {
+    const r = await fetch(`/admin/orders/${orderId}/mark-paid`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+    const d = await r.json();
+    if (d.success) { showToast(d.message, 'success'); setTimeout(() => window.location.reload(), 800); }
+    else { showToast(d.message || 'Error', 'error'); btn.disabled = false; }
+  } catch { showToast('Request failed', 'error'); btn.disabled = false; }
+}
+</script>

@@ -1,0 +1,97 @@
+<% layout('layouts/admin') %>
+<div class="flex items-center justify-between mb-6">
+  <div><h2 class="text-xl font-bold text-white">Users</h2><p class="text-gray-500 text-sm"><%= pagination.total %> total users</p></div>
+</div>
+
+<div class="card p-4 mb-5">
+  <form method="GET" action="/admin/users" class="flex flex-wrap gap-3">
+    <input type="text" name="search" value="<%= filters.search || '' %>" placeholder="Search by name or email..." class="flex-1 min-w-[200px] rounded-lg px-3 py-2 text-sm"/>
+    <select name="role" class="rounded-lg px-3 py-2 text-sm">
+      <option value="">All Roles</option>
+      <option value="user" <%= filters.role==='user'?'selected':'' %>>User</option>
+      <option value="staff" <%= filters.role==='staff'?'selected':'' %>>Staff</option>
+      <option value="admin" <%= filters.role==='admin'?'selected':'' %>>Admin</option>
+    </select>
+    <select name="status" class="rounded-lg px-3 py-2 text-sm">
+      <option value="">All Status</option>
+      <option value="active" <%= filters.status==='active'?'selected':'' %>>Active</option>
+      <option value="blocked" <%= filters.status==='blocked'?'selected':'' %>>Blocked</option>
+    </select>
+    <button type="submit" class="bg-accent-500 text-primary px-4 py-2 rounded-lg text-sm font-bold">Filter</button>
+    <a href="/admin/users" class="px-4 py-2 rounded-lg text-sm text-gray-400 border border-white/10">Clear</a>
+  </form>
+</div>
+
+<div class="card overflow-hidden">
+  <table class="w-full text-sm">
+    <thead><tr class="text-xs text-gray-500 uppercase tracking-wider border-b border-white/5">
+      <th class="text-left px-5 py-3">User</th>
+      <th class="text-left px-5 py-3">Role</th>
+      <th class="text-left px-5 py-3">Wallet</th>
+      <th class="text-left px-5 py-3">Joined</th>
+      <th class="text-left px-5 py-3">Status</th>
+      <th class="text-left px-5 py-3">Actions</th>
+    </tr></thead>
+    <tbody class="divide-y divide-white/5">
+      <% users.forEach(user => { %>
+      <tr class="hover:bg-white/5 transition-colors">
+        <td class="px-5 py-3">
+          <div class="flex items-center gap-3">
+            <% if (user.avatar) { %><img src="<%= user.avatar %>" class="w-9 h-9 rounded-full object-cover"/><% } else { %>
+            <div class="w-9 h-9 rounded-full bg-gradient-to-br from-accent-400 to-accent-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0"><%= user.name.charAt(0).toUpperCase() %></div><% } %>
+            <div class="min-w-0">
+              <p class="font-medium text-gray-200 truncate"><%= user.name %></p>
+              <p class="text-xs text-gray-500 truncate max-w-[160px]"><%= user.email %></p>
+            </div>
+          </div>
+        </td>
+        <td class="px-5 py-3">
+          <span class="badge capitalize <%= user.role==='admin'?'bg-purple-500/20 text-purple-400':user.role==='staff'?'bg-blue-500/20 text-blue-400':'bg-gray-500/20 text-gray-400' %>"><%= user.role %></span>
+        </td>
+        <td class="px-5 py-3 text-gray-300">₹<%= (user.walletBalance || 0).toLocaleString('en-IN') %></td>
+        <td class="px-5 py-3 text-gray-500 text-xs"><%= new Date(user.createdAt).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}) %></td>
+        <td class="px-5 py-3">
+          <span class="badge <%= user.isBlocked ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400' %>">
+            <%= user.isBlocked ? 'Blocked' : 'Active' %>
+          </span>
+        </td>
+        <td class="px-5 py-3">
+          <div class="flex gap-2">
+            <a href="/admin/users/<%= user._id %>" class="p-2 hover:bg-white/10 rounded-lg text-blue-400 transition-colors" title="View"><i class="fa-solid fa-eye text-sm"></i></a>
+            <% if (user.role !== 'admin') { %>
+            <button onclick="toggleBlock('<%= user._id %>', '<%= user.name %>', <%= user.isBlocked %>)"
+              class="p-2 hover:bg-white/10 rounded-lg transition-colors <%= user.isBlocked ? 'text-green-400' : 'text-red-400' %>"
+              title="<%= user.isBlocked ? 'Unblock' : 'Block' %>">
+              <i class="fa-solid fa-<%= user.isBlocked ? 'lock-open' : 'lock' %> text-sm"></i>
+            </button>
+            <% } %>
+          </div>
+        </td>
+      </tr>
+      <% }) %>
+      <% if (!users.length) { %><tr><td colspan="6" class="px-5 py-12 text-center text-gray-500"><i class="fa-solid fa-users text-2xl mb-2 block"></i>No users found</td></tr><% } %>
+    </tbody>
+  </table>
+
+  <% if (pagination.totalPages > 1) { %>
+  <div class="flex items-center justify-between px-5 py-4 border-t border-white/5">
+    <p class="text-xs text-gray-500">Page <%= pagination.page %> of <%= pagination.totalPages %></p>
+    <div class="flex gap-2">
+      <% for(let p=Math.max(1,pagination.page-2); p<=Math.min(pagination.totalPages,pagination.page+2); p++) { %>
+      <a href="?<%= new URLSearchParams({...filters, page:p}).toString() %>" class="w-8 h-8 flex items-center justify-center rounded-lg text-xs font-bold transition-all <%= p===pagination.page ? 'bg-accent-500 text-primary' : 'text-gray-400 hover:bg-white/10' %>"><%= p %></a>
+      <% } %>
+    </div>
+  </div>
+  <% } %>
+</div>
+
+<script>
+async function toggleBlock(userId, name, isBlocked) {
+  const reason = isBlocked ? null : prompt(`Reason for blocking ${name}:`);
+  if (!isBlocked && !reason) return;
+  const r = await fetch(`/admin/users/${userId}/toggle-block`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ reason }) });
+  const d = await r.json();
+  if (d.success) { showToast(d.message, 'success'); setTimeout(() => window.location.reload(), 800); }
+  else showToast(d.message || 'Error', 'error');
+}
+</script>

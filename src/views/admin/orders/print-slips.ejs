@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Package Slips</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    * { 
+      margin: 0; 
+      padding: 0; 
+      box-sizing: border-box; 
+    }
+    body {
+      background: white;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+    .page {
+      width: 100%;
+      background: white;
+      page-break-after: always;
+      break-after: page;
+    }
+    .page:last-child {
+      page-break-after: auto;
+    }
+    
+    /* 4 slips stacked vertically - each takes exactly 1/4 of A4 height */
+    .slips-stack {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      min-height: 297mm; /* A4 height */
+    }
+    
+    .slip {
+      flex: 1; /* Each slip takes equal height (1/4 of A4) */
+      border: 1.5px dashed #94a3b8;
+      padding: 12px 15px;
+      break-inside: avoid;
+      page-break-inside: avoid;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    
+    .slip:not(:last-child) {
+      border-bottom: none;
+    }
+    
+    /* MODIFIED: Changed display:none to visibility:hidden so it retains physical height */
+    .slip.empty-slot {
+      visibility: hidden;
+      border: none; /* Hide border on print */
+    }
+    
+    .slip-header {
+      border-bottom: 1.5px solid #2563eb;
+      margin-bottom: 10px;
+      padding-bottom: 6px;
+    }
+
+    .slip-header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-weight: 700;
+      font-size: 11px;
+      text-transform: uppercase;
+      color: #1e293b;
+      letter-spacing: 0.4px;
+      margin-bottom: 5px;
+    }
+
+    .slip-cod-line {
+      font-weight: 800;
+      font-size: 12px;
+      text-transform: uppercase;
+      color: #0f172a;
+      letter-spacing: 0.2px;
+      line-height: 1.25;
+      word-break: break-word;
+      overflow-wrap: break-word;
+    }
+
+    .slip-cod-line.is-prepaid {
+      color: #16a34a;
+    }
+    
+    .address-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      margin-bottom: 10px;
+    }
+    
+    .from-addr, .to-addr {
+      flex: 1;
+      min-width: 180px;
+    }
+    
+    .address-block {
+      font-size: 14px;
+      line-height: 1.4;
+    }
+    
+    .address-block strong {
+      font-size: 12px;
+      color: #0f172a;
+      display: inline-block;
+      margin-bottom: 4px;
+    }
+    
+    .address-block i {
+      font-size: 10px;
+      color: #555;
+      width: 14px;
+      text-align: center;
+    }
+    
+    .order-details {
+      font-size: 10px;
+      border-top: 1px solid #e2e8f0;
+      padding-top: 8px;
+      margin-top: 6px;
+    }
+    
+    .order-details p {
+      margin: 4px 0;
+    }
+    
+    .order-number {
+      font-weight: bold;
+      color: #2563eb;
+      font-size: 11px;
+    }
+    
+    .items-list {
+      font-size: 10px;
+      color: #334155;
+      margin-top: 4px;
+    }
+    
+    .items-list span {
+      background: #f1f5f9;
+      padding: 1px 5px;
+      border-radius: 3px;
+      display: inline-block;
+      margin-right: 5px;
+      margin-bottom: 3px;
+    }
+
+    @page {
+    size: A4 portrait;
+    margin: 0 !important; /* Forces the browser to completely drop headers/footers */
+    }
+
+    .slips-stack {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;      /* Safe fallback for screen view */
+    min-height: 297mm;
+    }
+
+    .slip {
+    flex: 1 1 25%;      /* Explicitly cap growth to exactly 25% height */
+    max-height: 25%;    /* Prevents any internal content from stretching the container */
+    border: 1.5px dashed #666666 !important;
+    padding: 12px 15px;
+    break-inside: avoid;
+    page-break-inside: avoid;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    overflow: hidden;   /* Keeps text overflows from blowing up the container box */
+    }
+
+    @media print {
+    html, body {
+        width: 210mm;
+        height: 297mm;
+        margin: 0 !important;
+        padding: 0 !important;
+        -webkit-print-color-adjust: exact; /* Ensures colors and borders render cleanly */
+        print-color-adjust: exact;
+    }
+    
+    .page {
+        width: 210mm;
+        height: 297mm;
+        page-break-after: always;
+        break-after: page;
+    }
+    
+    .slips-stack {
+        height: 297mm !important;
+        min-height: 297mm !important;
+    }
+
+    .slip.empty-slot {
+        visibility: hidden !important;
+        display: flex !important;
+        border: none !important; /* No physical border lines for missing slips */
+    }
+    }
+
+    /* SCREEN STYLES - For preview only */
+    @media screen {
+      body {
+        background: #e2e8f0;
+        padding: 20px;
+      }
+      .page {
+        max-width: 210mm;
+        margin: 0 auto 20px auto;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      }
+      .slip {
+        border: 1px solid #cbd5e1;
+      }
+      /* MODIFIED: Ensure visibility is visible on browser screen preview */
+      .slip.empty-slot {
+        visibility: visible;
+        display: flex; 
+        border: 1px dashed #cbd5e1;
+        background: #fafafa;
+        opacity: 0.3;
+      }
+    }
+
+    .text-xs { font-size: 9px; }
+    .mb-1 { margin-bottom: 4px; }
+    .mb-2 { margin-bottom: 8px; }
+    .mt-2 { margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <% pages.forEach((pageOrders, pageIndex) => { %>
+    <div class="page">
+      <div class="slips-stack">
+        <% for (let i = 0; i < 4; i++) {
+          const order = pageOrders[i];
+          if (!order) { %>
+            <div class="slip empty-slot"></div>
+          <% } else { 
+            const ship = order.shippingAddress;
+          %>
+            <div class="slip">
+              <div>
+                <div class="slip-header">
+                  <div class="slip-header-row">
+                    <span>Customer ID: <%= fromAddress.customerId || '—' %></span>
+                    <span>Speed Parcel</span>
+                  </div>
+                  <% if (order.paymentMethod === 'cod' && order.paymentStatus !== 'paid') { %>
+                    <div class="slip-cod-line">
+                      COD RS <%= order.totalAmount.toLocaleString('en-IN') %> (<%= order.totalAmountInWords %>)
+                    </div>
+                  <% } else { %>
+                    <div class="slip-cod-line is-prepaid">
+                      PREPAID — RS <%= order.totalAmount.toLocaleString('en-IN') %> (<%= order.totalAmountInWords %>)
+                    </div>
+                  <% } %>
+                </div>
+                
+                <div class="address-row">
+                  <div class="address-block from-addr">
+                    <strong><i class="fas fa-store"></i> FROM:</strong><br>
+                    <% if (fromAddress.company) { %>
+                      <%= fromAddress.company %><% if (fromAddress.name) { %> · <%= fromAddress.name %><% } %><br>
+                    <% } else if (fromAddress.name) { %>
+                      <%= fromAddress.name %><br>
+                    <% } %>
+                    <%= fromAddress.addressLine1 %>
+                    <% if (fromAddress.addressLine2) { %>, <%= fromAddress.addressLine2 %><% } %><br>
+                    <%= fromAddress.city %>, <%= fromAddress.state %> — <%= fromAddress.pincode %><br>
+                    <%= fromAddress.country %><br>
+                    <i class="fas fa-phone"></i> <%= fromAddress.phone %>
+                    <% if (fromAddress.email) { %>
+                      &nbsp;&nbsp;<i class="fas fa-envelope"></i> <%= fromAddress.email %>
+                    <% } %>
+                  </div>
+                  
+                  <div class="address-block to-addr">
+                    <strong><i class="fas fa-truck"></i> TO:</strong><br>
+                    <%= ship.fullName %><br>
+                    <%= ship.addressLine1 %><% if(ship.addressLine2) { %>, <%= ship.addressLine2 %><% } %><br>
+                    <%= ship.city %>, <%= ship.state %> — <%= ship.pincode %><br>
+                    <%= ship.country %><br>
+                    <i class="fas fa-phone"></i> <%= ship.phone %>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="order-details">
+                <p>
+                  <span class="order-number"><i class="fas fa-hashtag"></i> Order #<%= order.orderNumber %></span> 
+                  | </i> <%= new Date(order.createdAt).toLocaleDateString('en-IN') %>
+                </p>
+                <p>
+                  <%= order.items.length %> Item(s) 
+                  | Rs </i> ₹<%= order.totalAmount.toLocaleString('en-IN') %>
+                </p>
+                <% if (order.items && order.items.length) { %>
+                  <div class="items-list">
+                    <i class="fas fa-tag"></i> Products: 
+                    <% order.items.forEach((item, idx) => { %>
+                      <span><%= item.productName %><% if (item.quantity > 1) { %> (x<%= item.quantity %>)<% } %></span>
+                    <% }) %>
+                  </div>
+                <% } %>
+              </div>
+            </div>
+          <% } %>
+        <% } %>
+      </div>
+    </div>
+  <% }); %>
+  
+  <script>
+    window.onload = () => {
+      window.print();
+    };
+  </script>
+</body>
+</html>

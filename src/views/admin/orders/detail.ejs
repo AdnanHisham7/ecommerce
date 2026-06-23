@@ -1,0 +1,313 @@
+<% layout('layouts/admin') %>
+
+<% const statusColors = {
+  pending:    'bg-yellow-500/20 text-yellow-400',
+  confirmed:  'bg-blue-500/20 text-blue-400',
+  packed:     'bg-teal-500/20 text-teal-400',
+  dispatched: 'bg-indigo-500/20 text-indigo-400',
+  delivered:  'bg-green-500/20 text-green-400',
+  cancelled:  'bg-red-500/20 text-red-400',
+  returned:   'bg-orange-500/20 text-orange-400',
+  refunded:   'bg-gray-500/20 text-gray-400',
+}; %>
+
+<div class="flex items-center justify-between mb-6">
+  <div>
+    <h2 class="text-xl font-bold text-white">Order #<%= order.orderNumber %></h2>
+    <p class="text-gray-500 text-sm"><%= new Date(order.createdAt).toLocaleString('en-IN') %></p>
+  </div>
+  <div class="flex items-center gap-3">
+    <span class="badge <%= statusColors[order.orderStatus] || 'bg-gray-500/20 text-gray-400' %> capitalize text-sm px-3 py-1"><%= order.orderStatus?.replace(/_/g,' ') %></span>
+    <a href="/admin/orders" class="flex items-center gap-2 px-4 py-2 border border-white/10 rounded-xl text-sm text-gray-400 hover:text-gray-200 transition-all">
+      <i class="fa-solid fa-arrow-left text-xs"></i> Back
+    </a>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+  <div class="lg:col-span-2 space-y-5">
+
+    <div class="card">
+      <div class="p-5 border-b border-white/5">
+        <h3 class="font-bold text-white">Order Items (<%= order.items.length %>)</h3>
+      </div>
+      <div class="divide-y divide-white/5">
+        <% order.items.forEach(item => {
+          // SKU-based: prefer variantImage → stored productImage
+          const displayImg = item.variant?.variantImage || item.productImage || '/images/placeholder.png';
+        %>
+        <div class="flex items-start gap-4 p-5">
+          <div class="relative flex-shrink-0">
+            <img src="<%= displayImg %>" class="w-16 h-16 rounded-xl object-cover bg-gray-800"/>
+            <% if (item.variant?.colorHex) { %>
+            <span class="absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-gray-900"
+              style="background-color:<%= item.variant.colorHex %>"></span>
+            <% } %>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="font-medium text-gray-200"><%= item.productName %></p>
+
+            <%# Variant details — works for color / size / color_size / none %>
+            <% if (item.variant && (item.variant.color || item.variant.size)) { %>
+            <div class="flex items-center gap-2 mt-1 flex-wrap">
+              <% if (item.variant.color) { %>
+              <span class="inline-flex items-center gap-1.5 text-xs transparent-black text-gray-300 px-2 py-0.5 rounded-md font-medium">
+                <% if (item.variant.colorHex) { %>
+                  <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background-color:<%= item.variant.colorHex %>"></span>
+                <% } %>
+                <%= item.variant.color %>
+              </span>
+              <% } %>
+              <% if (item.variant.size) { %>
+              <span class="text-xs transparent-black text-gray-300 px-2 py-0.5 rounded-md font-medium">
+                Size: <%= item.variant.size %>
+              </span>
+              <% } %>
+              <% if (item.variant.sku) { %>
+              <span class="text-xs text-gray-600 font-mono">SKU: <%= item.variant.sku %></span>
+              <% } %>
+            </div>
+            <% } %>
+
+            <p class="text-xs text-gray-600 mt-1">Qty: <%= item.quantity %> × ₹<%= item.price.toLocaleString('en-IN') %></p>
+          </div>
+          <div class="text-right flex-shrink-0">
+            <p class="font-bold text-white">₹<%= (item.price * item.quantity).toLocaleString('en-IN') %></p>
+            <span class="badge <%= item.itemStatus === 'active' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400' %> capitalize mt-1">
+              <%= item.itemStatus %>
+            </span>
+          </div>
+        </div>
+        <% }) %>
+      </div>
+    </div>
+
+    <div class="card p-5">
+      <h3 class="font-bold text-white mb-5">Order Timeline</h3>
+      <div class="relative">
+        <div class="absolute left-4 top-0 bottom-0 w-0.5 bg-white/5"></div>
+        <div class="space-y-4">
+          <% order.trackingHistory?.slice().reverse().forEach((t, i) => { %>
+          <div class="flex items-start gap-4 relative">
+            <div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 z-10 <%= i===0 ? 'bg-accent-500' : 'bg-gray-700' %>">
+              <i class="fa-solid fa-check text-xs <%= i===0 ? 'text-primary' : 'text-gray-400' %>"></i>
+            </div>
+            <div class="flex-1 pt-1">
+              <p class="font-semibold text-sm text-gray-200 capitalize"><%= t.status?.replace(/_/g,' ') %></p>
+              <% if (t.message) { %>
+              <p class="text-xs text-gray-500"><%= t.message %></p>
+              <% } %>
+              <% if (t.trackingNumber) { %>
+              <p class="text-xs text-gray-500 mt-1"><span class="font-medium text-gray-400">Tracking No:</span> <%= t.trackingNumber %></p>
+              <% } %>
+              <% if (t.trackingLink) { %>
+              <a href="<%= t.trackingLink %>" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 mt-1 text-xs font-semibold text-accent-400 hover:text-accent-300">
+                <i class="fa-solid fa-truck-fast"></i> View Tracking Link <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+              </a>
+              <% } %>
+              <p class="text-xs text-gray-600 mt-1"><%= new Date(t.timestamp).toLocaleString('en-IN') %></p>
+            </div>
+          </div>
+          <% }) %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="space-y-5">
+
+    <% if (!['cancelled','refunded'].includes(order.orderStatus)) { %>
+    <div class="card p-5">
+      <h3 class="font-bold text-white mb-4">Update Status</h3>
+      <div class="space-y-3">
+        <%
+          const transitions = {
+            pending:    ['confirmed','cancelled'],
+            confirmed:  ['packed','cancelled'],
+            packed:     ['dispatched'],
+            dispatched: ['delivered'],
+            delivered:  ['returned'],
+            returned:   ['refunded'],
+          };
+          const next = transitions[order.orderStatus] || [];
+        %>
+        <% if (next.length) { %>
+        <select id="newStatus" class="w-full rounded-xl px-4 py-3 text-sm">
+          <% next.forEach(s => { %>
+          <option value="<%= s %>" class="capitalize"><%= s.replace(/_/g,' ') %></option>
+          <% }) %>
+        </select>
+        <input type="text" id="trackingNumber" placeholder="Tracking number (optional)" value="<%= order.trackingNumber || '' %>" class="w-full rounded-xl px-4 py-3 text-sm"/>
+        <input type="url" id="trackingLink" placeholder="Tracking link, e.g. https://www.indiapost.gov.in/... (optional)" value="<%= order.trackingLink || '' %>" class="w-full rounded-xl px-4 py-3 text-sm"/>
+        <input type="text" id="statusMessage" placeholder="Message (optional)" class="w-full rounded-xl px-4 py-3 text-sm"/>
+        <button id="btnUpdateStatus" onclick="updateStatus()" class="w-full bg-accent-500 text-primary py-2.5 rounded-xl font-bold text-sm disabled:opacity-50">Update Status</button>
+        <% } else { %>
+        <p class="text-xs text-gray-500">No further status transitions available.</p>
+        <% } %>
+      </div>
+    </div>
+    <% } %>
+
+    <div class="card p-5">
+      <h3 class="font-bold text-white mb-4">Order Summary</h3>
+      <div class="space-y-2 text-sm">
+        <div class="flex justify-between text-gray-400"><span>Subtotal</span><span>₹<%= order.subtotal?.toLocaleString('en-IN') %></span></div>
+        <% if (order.couponDiscount > 0) { %>
+        <div class="flex justify-between text-green-400"><span>Coupon (<%= order.couponCode %>)</span><span>−₹<%= order.couponDiscount.toLocaleString('en-IN') %></span></div>
+        <% } %>
+        <div class="flex justify-between text-gray-400"><span>Shipping</span><span><%= order.shippingCharge === 0 ? 'FREE' : '₹'+order.shippingCharge %></span></div>
+        <% if (typeof order.taxAmount !== 'undefined' && order.taxAmount > 0) { %>
+        <div class="flex justify-between text-gray-400"><span>Tax</span><span>₹<%= order.taxAmount?.toLocaleString('en-IN') || 0 %></span></div>
+        <% } %>
+        <% if (order.walletAmountUsed > 0) { %>
+        <div class="flex justify-between text-blue-400"><span>Wallet Used</span><span>−₹<%= order.walletAmountUsed.toLocaleString('en-IN') %></span></div>
+        <% } %>
+        <div class="border-t border-white/5 pt-2 flex justify-between font-bold text-white"><span>Total</span><span>₹<%= order.totalAmount.toLocaleString('en-IN') %></span></div>
+      </div>
+    </div>
+
+    <div class="card p-5">
+      <h3 class="font-bold text-white mb-4">Customer</h3>
+      <div class="flex items-center gap-3 mb-3">
+        <div class="w-10 h-10 rounded-full bg-accent-500/20 flex items-center justify-center text-accent-400 font-bold">
+          <%= order.user?.name?.charAt(0)?.toUpperCase() || 'U' %>
+        </div>
+        <div>
+          <p class="font-medium text-gray-200"><%= order.user?.name || 'N/A' %></p>
+          <p class="text-xs text-gray-500"><%= order.user?.email || '' %></p>
+        </div>
+      </div>
+      <% if (order.user?._id) { %>
+      <a href="/admin/users/<%= order.user._id %>" class="text-xs text-accent-500 hover:text-accent-400">View Profile →</a>
+      <% } %>
+    </div>
+
+    <div class="card p-5">
+      <h3 class="font-bold text-white mb-3">Shipping Address</h3>
+      <% const a = order.shippingAddress; %>
+      <div class="text-sm text-gray-400 space-y-0.5">
+        <p class="font-medium text-gray-200"><%= a.fullName %></p>
+        <p><%= a.addressLine1 %><% if(a.addressLine2){%>, <%= a.addressLine2 %><% } %></p>
+        <p><%= a.city %>, <%= a.state %> — <%= a.pincode %></p>
+        <p><%= a.country %></p>
+        <p class="pt-1">📞 <%= a.phone %></p>
+      </div>
+    </div>
+
+    <div class="card p-5">
+      <h3 class="font-bold text-white mb-3">Payment</h3>
+      <div class="text-sm space-y-1.5">
+        <div class="flex justify-between">
+          <span class="text-gray-400">Method</span>
+          <span class="text-gray-200 capitalize font-medium"><%= order.paymentMethod %></span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-gray-400">Status</span>
+          <span class="capitalize font-semibold <%= order.paymentStatus==='paid'?'text-green-400':order.paymentStatus==='failed'?'text-red-400':'text-yellow-400' %>">
+            <%= order.paymentStatus %>
+          </span>
+        </div>
+        <% if (order.razorpayOrderId) { %>
+        <div class="flex justify-between text-xs">
+          <span class="text-gray-500">Razorpay Order</span>
+          <span class="text-gray-500 font-mono truncate max-w-[120px]" title="<%= order.razorpayOrderId %>"><%= order.razorpayOrderId %></span>
+        </div>
+        <% } %>
+        <% if (order.razorpayPaymentId) { %>
+        <div class="flex justify-between text-xs">
+          <span class="text-gray-500">Payment ID</span>
+          <span class="text-gray-500 font-mono truncate max-w-[120px]" title="<%= order.razorpayPaymentId %>"><%= order.razorpayPaymentId %></span>
+        </div>
+        <% } %>
+        <% if (order.paidAt) { %>
+        <div class="flex justify-between text-xs">
+          <span class="text-gray-500">Paid At</span>
+          <span class="text-gray-400"><%= new Date(order.paidAt).toLocaleString('en-IN') %></span>
+        </div>
+        <% } %>
+      </div>
+      <% if (order.paymentMethod === 'cod' && order.paymentStatus !== 'paid' && !['cancelled','refunded'].includes(order.orderStatus)) { %>
+      <button id="btnMarkPaid" onclick="markCodPaid()" class="mt-4 w-full flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white py-2.5 rounded-xl font-bold text-sm transition-colors disabled:opacity-50">
+        <i class="fa-solid fa-money-bill-check"></i> Mark as Paid (COD)
+      </button>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<script>
+async function updateStatus() {
+  const status         = document.getElementById('newStatus').value;
+  const trackingNumber = document.getElementById('trackingNumber').value;
+  const trackingLink   = document.getElementById('trackingLink').value;
+  const message        = document.getElementById('statusMessage').value;
+  if (!status) return;
+
+  if (trackingLink && !/^https?:\/\//i.test(trackingLink.trim())) {
+    showToast('Tracking link must start with http:// or https://', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('btnUpdateStatus');
+  if (btn) {
+    btn.textContent = 'Updating...';
+    btn.disabled = true;
+  }
+
+  try {
+    const r = await fetch('/admin/orders/<%= order._id %>/status', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status, trackingNumber, trackingLink, message }),
+    });
+    const d = await r.json();
+    if (d.success) { 
+      showToast(d.message, 'success'); 
+      setTimeout(() => window.location.reload(), 1000); 
+    } else {
+      showToast(d.message || 'Error updating status', 'error');
+      if (btn) {
+        btn.textContent = 'Update Status';
+        btn.disabled = false;
+      }
+    }
+  } catch (err) {
+    showToast('Something went wrong', 'error');
+    if (btn) {
+      btn.textContent = 'Update Status';
+      btn.disabled = false;
+    }
+  }
+}
+
+async function markCodPaid() {
+  if (!confirm('Mark this COD order as paid?')) return;
+
+  const btn = document.getElementById('btnMarkPaid');
+  if (btn) {
+    btn.innerHTML = 'Processing...';
+    btn.disabled = true;
+  }
+
+  try {
+    const r = await fetch('/admin/orders/<%= order._id %>/mark-paid', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+    const d = await r.json();
+    if (d.success) { 
+      showToast(d.message, 'success'); 
+      setTimeout(() => window.location.reload(), 800); 
+    } else {
+      showToast(d.message || 'Error', 'error');
+      if (btn) {
+        btn.innerHTML = '<i class="fa-solid fa-money-bill-check"></i> Mark as Paid (COD)';
+        btn.disabled = false;
+      }
+    }
+  } catch (err) {
+    showToast('Something went wrong', 'error');
+    if (btn) {
+      btn.innerHTML = '<i class="fa-solid fa-money-bill-check"></i> Mark as Paid (COD)';
+      btn.disabled = false;
+    }
+  }
+}
+</script>

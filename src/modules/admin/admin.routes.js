@@ -54,4 +54,16 @@ router.post('/categories/add', avatarUpload.single('image'), noCache, requirePer
 router.post('/categories/:id/edit', avatarUpload.single('image'), noCache, requirePermission('manage_categories'), ctrl.updateCategory);
 router.post('/categories/:id/delete', noCache, requirePermission('manage_categories'), ctrl.deleteCategory);
 
+// ---- Users ----
+router.get('/users', noCache, requirePermission('manage_users'), ctrl.getUsers);
+router.get('/users/:id', noCache, requirePermission('manage_users'), ctrl.getUserDetail);
+router.post('/users/:id/toggle-block', noCache, requirePermission('manage_users'), ctrl.toggleUserBlock);
+
+// ---- Orders ----
+router.get('/orders', noCache, requirePermission('manage_orders'), ctrl.getOrders);
+router.get('/orders/:id', noCache, requirePermission('manage_orders'), ctrl.getOrderDetail);
+router.post('/orders/:id/status', noCache, requirePermission('manage_orders'), ctrl.updateOrderStatus);
+router.post('/orders/:id/mark-paid', noCache, requirePermission('manage_orders'), ctrl.markCodOrderPaid);
+router.post('/orders/print-package-slips', noCache, requirePermission('manage_orders'), ctrl.getPrintPackageSlips);
+
 module.exports = router;

@@ -1,0 +1,84 @@
+<% layout('layouts/admin') %>
+<div class="flex items-center justify-between mb-6">
+  <div><h2 class="text-xl font-bold text-white">User: <%= user.name %></h2></div>
+  <a href="/admin/users" class="flex items-center gap-2 px-4 py-2 border border-white/10 rounded-xl text-sm text-gray-400 hover:text-gray-200 transition-all"><i class="fa-solid fa-arrow-left text-xs"></i> Back</a>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+  <div class="space-y-5">
+    <div class="card p-5 text-center">
+      <% if (user.avatar) { %><img src="<%= user.avatar %>" class="w-20 h-20 rounded-full object-cover mx-auto mb-3 border-4 border-accent-500"/>
+      <% } else { %><div class="w-20 h-20 rounded-full bg-gradient-to-br from-accent-400 to-accent-600 flex items-center justify-center text-white font-black text-3xl mx-auto mb-3"><%= user.name.charAt(0) %></div><% } %>
+      <h3 class="font-bold text-white text-lg"><%= user.name %></h3>
+      <p class="text-gray-500 text-sm"><%= user.email %></p>
+      <div class="flex justify-center gap-2 mt-2">
+        <span class="badge capitalize <%= user.role==='admin'?'bg-purple-500/20 text-purple-400':user.role==='staff'?'bg-blue-500/20 text-blue-400':'bg-gray-500/20 text-gray-400' %>"><%= user.role %></span>
+        <span class="badge <%= user.isBlocked ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400' %>"><%= user.isBlocked ? 'Blocked' : 'Active' %></span>
+      </div>
+    </div>
+
+    <div class="card p-5 space-y-3 text-sm">
+      <h3 class="font-bold text-white mb-2">Account Info</h3>
+      <div class="flex justify-between"><span class="text-gray-500">Phone</span><span class="text-gray-300"><%= user.phone || '—' %></span></div>
+      <div class="flex justify-between"><span class="text-gray-500">Verified</span><span class="<%= user.isEmailVerified ? 'text-green-400' : 'text-red-400' %>"><%= user.isEmailVerified ? 'Yes' : 'No' %></span></div>
+      <div class="flex justify-between"><span class="text-gray-500">Provider</span><span class="text-gray-300 capitalize"><%= user.authProvider %></span></div>
+      <div class="flex justify-between"><span class="text-gray-500">2FA</span><span class="<%= user.twoFactorEnabled ? 'text-green-400' : 'text-gray-500' %>"><%= user.twoFactorEnabled ? 'Enabled' : 'Disabled' %></span></div>
+      <div class="flex justify-between"><span class="text-gray-500">Joined</span><span class="text-gray-300"><%= new Date(user.createdAt).toLocaleDateString('en-IN') %></span></div>
+      <div class="flex justify-between"><span class="text-gray-500">Last Login</span><span class="text-gray-300"><%= user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleDateString('en-IN') : '—' %></span></div>
+    </div>
+
+    <div class="card p-5 space-y-3 text-sm">
+      <h3 class="font-bold text-white mb-2">Wallet & Referral</h3>
+      <div class="flex justify-between"><span class="text-gray-500">Wallet Balance</span><span class="text-green-400 font-bold">₹<%= (user.walletBalance||0).toLocaleString('en-IN') %></span></div>
+      <div class="flex justify-between"><span class="text-gray-500">Referral Code</span><span class="text-accent-400 font-mono"><%= user.referralCode %></span></div>
+      <div class="flex justify-between"><span class="text-gray-500">Total Referrals</span><span class="text-gray-300"><%= user.referralCount || 0 %></span></div>
+      <div class="flex justify-between"><span class="text-gray-500">Referral Earnings</span><span class="text-gray-300">₹<%= (user.referralEarnings||0).toLocaleString('en-IN') %></span></div>
+    </div>
+
+    <% if (user.role !== 'admin') { %>
+    <button onclick="toggleBlock('<%= user._id %>', '<%= user.name %>', <%= user.isBlocked %>)"
+      class="w-full py-2.5 rounded-xl font-bold text-sm transition-colors <%= user.isBlocked ? 'bg-green-600 hover:bg-green-500 text-white' : 'bg-red-600 hover:bg-red-500 text-white' %>">
+      <%= user.isBlocked ? '✓ Unblock User' : '🚫 Block User' %>
+    </button>
+    <% } %>
+  </div>
+
+  <div class="lg:col-span-2 space-y-5">
+    <div class="card p-4 grid grid-cols-3 gap-4 text-center">
+      <% [['Total Orders', orders.length], ['Total Spent', '₹'+totalSpent.toLocaleString('en-IN')], ['Addresses', user.addresses?.length||0]].forEach(([l,v]) => { %>
+      <div><p class="text-xl font-black text-white"><%= v %></p><p class="text-xs text-gray-500"><%= l %></p></div>
+      <% }) %>
+    </div>
+
+    <div class="card">
+      <div class="p-4 border-b border-white/5"><h3 class="font-bold text-white">Recent Orders</h3></div>
+      <div class="divide-y divide-white/5">
+        <% if (orders.length) { orders.forEach(order => { %>
+        <div class="flex items-center justify-between p-4">
+          <div>
+            <p class="font-semibold text-accent-400 text-sm">#<%= order.orderNumber %></p>
+            <p class="text-xs text-gray-500"><%= new Date(order.createdAt).toLocaleDateString('en-IN') %></p>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="font-bold text-white text-sm">₹<%= order.totalAmount.toLocaleString('en-IN') %></span>
+            <span class="badge capitalize <%= order.orderStatus==='delivered'?'bg-green-500/20 text-green-400':order.orderStatus==='cancelled'?'bg-red-500/20 text-red-400':'bg-yellow-500/20 text-yellow-400' %>"><%= order.orderStatus %></span>
+            <a href="/admin/orders/<%= order._id %>" class="text-xs text-accent-500 hover:text-accent-400">View</a>
+          </div>
+        </div>
+        <% }) } else { %>
+        <div class="p-8 text-center text-gray-500 text-sm">No orders yet</div>
+        <% } %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+async function toggleBlock(userId, name, isBlocked) {
+  const reason = isBlocked ? null : prompt(`Reason for blocking ${name}:`);
+  if (!isBlocked && !reason) return;
+  const r = await fetch(`/admin/users/${userId}/toggle-block`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ reason }) });
+  const d = await r.json();
+  if (d.success) { showToast(d.message, 'success'); setTimeout(() => window.location.reload(), 800); }
+}
+</script>
