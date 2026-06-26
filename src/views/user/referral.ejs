@@ -1,0 +1,113 @@
+<% layout('layouts/user') %>
+<div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
+  <h1 class="text-2xl md:text-3xl font-black dark:text-white mb-2">Referral <span class="text-accent-500">Program</span></h1>
+  <p class="text-gray-500 dark:text-gray-400 mb-6 md:mb-8">
+    Invite friends and earn ₹<%= brand.commerce.referralBonus %> wallet credit for every successful signup!
+  </p>
+
+  <!-- Stats -->
+  <div class="grid grid-cols-3 gap-3 md:gap-4 mb-6 md:mb-8">
+    <% [
+      [referralCount, 'Referred', 'fa-users'],
+      ['₹' + referralEarnings.toLocaleString('en-IN'), 'Earned', 'fa-coins'],
+      [referredUsers.length, 'Active', 'fa-check-circle'],
+    ].forEach(([val, label, icon]) => { %>
+    <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-4 md:p-5 text-center">
+      <i class="fa-solid <%= icon %> text-accent-500 text-xl md:text-2xl mb-2 block"></i>
+      <p class="text-xl md:text-2xl font-black dark:text-white"><%= val %></p>
+      <p class="text-xs text-gray-500 dark:text-gray-400"><%= label %></p>
+    </div>
+    <% }) %>
+  </div>
+
+  <!-- Referral Link Card -->
+  <div class="rounded-3xl p-5 md:p-8 text-white mb-6 md:mb-8 shadow-2xl bg-gray-900">
+    <h2 class="text-lg md:text-xl font-black mb-1">Your Referral Link</h2>
+    <p class="text-gray-300 text-sm mb-4">Share this link with friends to earn rewards</p>
+
+    <!-- Link input + copy: stacked layout prevents overflow on mobile -->
+    <div class="space-y-2">
+      <input type="text" id="referralLink" value="<%= referralLink %>" readonly
+        class="w-full bg-white/10 border border-white/20 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-accent-400"
+        style="color:white;"/>
+      <button onclick="copyLink()" class="w-full btn-primary px-5 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2">
+        <i class="fa-solid fa-copy"></i> Copy Link
+      </button>
+    </div>
+
+    <!-- Code -->
+    <div class="mt-4">
+      <p class="text-gray-300 text-xs mb-2">Or share your referral code directly:</p>
+      <div class="flex flex-wrap items-center gap-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl px-4 py-2">
+        <span class="text-xl font-black tracking-widest"><%= referralCode %></span>
+        <button onclick="copyCode()" class="text-xs text-accent-400 hover:text-accent-300 font-semibold whitespace-nowrap">Copy Code</button>
+      </div>
+    </div>
+
+    <!-- Share Buttons -->
+    <div class="flex flex-wrap gap-2 mt-4 md:mt-5">
+      <a href="https://wa.me/?text=<%= encodeURIComponent('Join ' + brand.name + ' and get premium football gear! Use my referral link: ' + referralLink) %>"
+        target="_blank" class="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-3 md:px-4 py-2 rounded-xl text-sm font-semibold transition-colors">
+        <i class="fa-brands fa-whatsapp"></i> WhatsApp
+      </a>
+      <button onclick="shareNative()" class="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-3 md:px-4 py-2 rounded-xl text-sm font-semibold transition-colors">
+        <i class="fa-solid fa-share-nodes"></i> Share
+      </button>
+    </div>
+  </div>
+
+  <!-- How it works -->
+  <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-5 md:p-6 mb-6">
+    <h2 class="font-bold dark:text-white mb-4 md:mb-5">How It Works</h2>
+    <div class="space-y-4">
+      <% [
+        ['1','Share your unique referral link or code with friends', 'fa-share-nodes', 'text-blue-500'],
+        ['2','Friend signs up using your link or enters your code', 'fa-user-plus', 'text-green-500'],
+        ['3','₹' + brand.commerce.referralBonus + ' is instantly credited to your wallet!', 'fa-wallet', 'text-accent-500'],
+      ].forEach(([step, desc, icon, color]) => { %>
+      <div class="flex items-center gap-3 md:gap-4">
+        <div class="w-9 h-9 md:w-10 md:h-10 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center font-black text-gray-500 dark:text-gray-400 flex-shrink-0 text-sm"><%= step %></div>
+        <i class="fa-solid <%= icon %> <%= color %> text-lg md:text-xl flex-shrink-0"></i>
+        <p class="text-sm text-gray-600 dark:text-gray-400"><%= desc %></p>
+      </div>
+      <% }) %>
+    </div>
+  </div>
+
+  <!-- Referred Users -->
+  <% if (referredUsers.length) { %>
+  <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800">
+    <div class="p-4 md:p-5 border-b border-gray-200 dark:border-gray-800">
+      <h2 class="font-bold dark:text-white">Referred Friends (<%= referredUsers.length %>)</h2>
+    </div>
+    <div class="divide-y divide-gray-100 dark:divide-gray-800">
+      <% referredUsers.forEach(u => { %>
+      <div class="flex items-center gap-3 md:gap-4 p-3 md:p-4">
+        <div class="w-9 h-9 rounded-full bg-gradient-to-br from-accent-400 to-accent-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+          <%= u.name.charAt(0).toUpperCase() %>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="font-medium text-sm dark:text-white truncate"><%= u.name %></p>
+          <p class="text-xs text-gray-400">Joined <%= new Date(u.createdAt).toLocaleDateString('en-IN',{month:'short',year:'numeric'}) %></p>
+        </div>
+        <span class="text-green-500 text-sm font-bold flex-shrink-0">+₹<%= brand.commerce.referralBonus %></span>
+      </div>
+      <% }) %>
+    </div>
+  </div>
+  <% } %>
+</div>
+
+<script>
+function copyLink() {
+  navigator.clipboard.writeText('<%= referralLink %>').then(() => showToast('Link copied!', 'success'));
+}
+function copyCode() {
+  navigator.clipboard.writeText('<%= referralCode %>').then(() => showToast('Code copied!', 'success'));
+}
+function shareNative() {
+  if (navigator.share) {
+    navigator.share({ title: 'Join <%= brand.name %>!', text: 'Get premium football gear!', url: '<%= referralLink %>' });
+  } else copyLink();
+}
+</script>

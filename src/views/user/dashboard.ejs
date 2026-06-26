@@ -1,0 +1,71 @@
+<% layout('layouts/user') %>
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 md:py-8">
+  <div class="mb-8"><h1 class="text-3xl font-black dark:text-white">My <span class="text-accent-500">Dashboard</span></h1><p class="text-gray-500 dark:text-gray-400 mt-1">Welcome back, <%= currentUser.name.split(' ')[0] %>! 👋</p></div>
+
+  <!-- Stats -->
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+    <% [
+      { icon:'fa-box', color:'from-blue-500 to-blue-600', label:'Total Orders', value: stats.totalOrders },
+      { icon:'fa-wallet', color:'from-green-500 to-green-600', label:'Wallet Balance', value: '₹'+stats.walletBalance.toLocaleString('en-IN') },
+      { icon:'fa-heart', color:'from-red-500 to-red-600', label:'Wishlist', value: stats.wishlistCount },
+      { icon:'fa-indian-rupee-sign', color:'from-accent-500 to-accent-600', label:'Total Spent', value: '₹'+stats.totalSpent.toLocaleString('en-IN') },
+    ].forEach(s => { %>
+    <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-5 flex items-center gap-4">
+      <div class="w-12 h-12 rounded-xl bg-gradient-to-br <%= s.color %> flex items-center justify-center shadow-lg flex-shrink-0">
+        <i class="fa-solid <%= s.icon %> text-white"></i>
+      </div>
+      <div><p class="text-xl font-black dark:text-white"><%= s.value %></p><p class="text-xs text-gray-500 dark:text-gray-400"><%= s.label %></p></div>
+    </div>
+    <% }) %>
+  </div>
+
+  <!-- Quick Links -->
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+    <% [
+      ['/profile','fa-user','Profile', 'Update your info'],
+      ['/orders','fa-box','My Orders','Track & manage'],
+      ['/wishlist','fa-heart','Wishlist','Saved items'],
+      ['/wallet','fa-wallet','Wallet','Balance & history'],
+      ['/profile/addresses','fa-map-marker-alt','Addresses','Manage saved'],
+      ['/referral','fa-gift','Referral','Earn rewards'],
+      ['/cart','fa-bag-shopping','Cart','View cart'],
+      ['/shop','fa-shop','Shop','Explore products'],
+    ].forEach(([href, icon, label, sub]) => { %>
+    <a href="<%= href %>" class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-4 hover:border-accent-400 hover:shadow-md dark:hover:shadow-accent-500/5 transition-all group">
+      <i class="fa-solid <%= icon %> text-accent-500 text-lg mb-2 block group-hover:scale-110 transition-transform"></i>
+      <p class="font-semibold text-sm dark:text-white"><%= label %></p>
+      <p class="text-xs text-gray-400 dark:text-gray-500"><%= sub %></p>
+    </a>
+    <% }) %>
+  </div>
+
+  <!-- Recent Orders -->
+  <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800">
+    <div class="flex items-center justify-between p-5 border-b border-gray-200 dark:border-gray-800">
+      <h2 class="font-bold dark:text-white">Recent Orders</h2>
+      <a href="/orders" class="text-sm text-accent-500 font-semibold hover:text-accent-600">View All →</a>
+    </div>
+    <% if (recentOrders.length) { %>
+    <div class="divide-y divide-gray-100 dark:divide-gray-800">
+      <% recentOrders.forEach(order => {
+        const statusColors = { pending:'text-yellow-500 bg-yellow-50 dark:bg-yellow-900/20', confirmed:'text-blue-500 bg-blue-50 dark:bg-blue-900/20', delivered:'text-green-500 bg-green-50 dark:bg-green-900/20', cancelled:'text-red-500 bg-red-50 dark:bg-red-900/20', shipped:'text-purple-500 bg-purple-50 dark:bg-purple-900/20' };
+        const sc = statusColors[order.orderStatus] || 'text-gray-500 bg-gray-50';
+      %>
+      <div class="flex items-center justify-between p-5">
+        <div>
+          <p class="font-semibold text-sm dark:text-white">#<%= order.orderNumber %></p>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5"><%= new Date(order.createdAt).toLocaleDateString('en-IN', {day:'numeric',month:'short',year:'numeric'}) %> • <%= order.items?.length %> item(s)</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="font-bold text-sm dark:text-white">₹<%= order.totalAmount.toLocaleString('en-IN') %></span>
+          <span class="text-xs font-semibold px-2 py-1 rounded-full capitalize <%= sc %>"><%= order.orderStatus?.replace(/_/g,' ') %></span>
+          <a href="/orders/<%= order._id %>" class="text-accent-500 hover:text-accent-600 text-xs font-semibold">View →</a>
+        </div>
+      </div>
+      <% }) %>
+    </div>
+    <% } else { %>
+    <div class="text-center py-12 text-gray-500 dark:text-gray-400"><div class="text-4xl mb-3">📦</div><p class="font-medium">No orders yet</p><a href="/shop" class="text-accent-500 text-sm">Start shopping →</a></div>
+    <% } %>
+  </div>
+</div>

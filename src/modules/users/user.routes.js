@@ -4,9 +4,10 @@ const productCtrl = require('../products/product.controller');
 const cartCtrl = require('../cart/cart.controller');
 const orderCtrl = require('../orders/order.controller');
 const userCtrl = require('../users/user.controller');
-const { requireAuth, optionalAuth } = require('../../middlewares/auth.middleware');
+const { requireAuth, optionalAuth, authenticate } = require('../../middlewares/auth.middleware');
 const noCache = require('../../middlewares/noCache.middleware');
 const { searchLimiter } = require('../../middlewares/rateLimit.middleware');
+const { avatarUpload } = require('../../config/cloudinary');
 
 router.use(noCache); // Apply noCache middleware to all user routes
 
@@ -50,5 +51,41 @@ router.get('/orders/:id/invoice', requireAuth, orderCtrl.downloadInvoice);
 // ---- Wishlist ----
 router.get('/wishlist', requireAuth, userCtrl.getWishlist);
 router.post('/wishlist/toggle', requireAuth, userCtrl.toggleWishlist);
+
+// ---- User Dashboard & Profile ----
+router.get('/dashboard', authenticate, userCtrl.getDashboard);
+router.get('/profile', requireAuth, userCtrl.getProfile);
+router.post('/profile/update', requireAuth, avatarUpload.single('avatar'), userCtrl.updateProfile);
+router.post('/profile/change-password', requireAuth, userCtrl.changePassword);
+
+// ---- Addresses ----
+router.get('/profile/addresses', requireAuth, userCtrl.getAddresses);
+router.post('/profile/addresses/add', requireAuth, userCtrl.addAddress);
+router.post('/profile/addresses/:addressId/update', requireAuth, userCtrl.updateAddress);
+router.delete('/profile/addresses/:addressId', requireAuth, userCtrl.deleteAddress);
+
+// ---- Wallet ----
+router.get('/wallet', requireAuth, userCtrl.getWallet);
+
+// ---- Preferences ----
+router.post('/preferences', requireAuth, userCtrl.updatePreferences);
+
+// ---- 2FA ----
+router.post('/profile/2fa/setup', requireAuth, userCtrl.setup2FA);
+router.post('/profile/2fa/enable', requireAuth, userCtrl.enable2FA);
+router.post('/profile/2fa/disable', requireAuth, userCtrl.disable2FA);
+
+// ---- Referral ----
+router.get('/referral', requireAuth, userCtrl.getReferral);
+
+// ---- Theme toggle ----
+router.post('/theme', (req, res) => {
+  req.session.theme = req.body.theme;
+  if (req.user) {
+    const User = require('../users/user.model');
+    User.findByIdAndUpdate(req.user._id, { 'preferences.theme': req.body.theme }).catch(() => {});
+  }
+  res.json({ success: true });
+});
 
 module.exports = router;
