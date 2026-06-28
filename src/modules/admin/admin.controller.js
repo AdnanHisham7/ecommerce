@@ -749,6 +749,89 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
 // ==================== COUPONS ====================
 
 
+const getCoupons = asyncHandler(async (req, res) => {
+  const [coupons, categories, brands] = await Promise.all([
+    Coupon.find().sort({ createdAt: -1 }).lean(),
+    Category.find({ isActive: true }).select('name slug').sort('name').lean(),
+    Product.distinct('brand', { isActive: true, brand: { $nin: [null, ''] } }),
+  ]);
+  const products = await Product.find({ isActive: true }).select('name brand').sort('name').limit(500).lean();
+  res.render('admin/coupons/index', {
+    title: 'Coupons',
+    coupons,
+    categories,
+    products,
+    brands: brands.filter(Boolean).sort(),
+  });
+});
+
+
+const addCoupon = asyncHandler(async (req, res) => {
+  const {
+    code, description, discountType, discountValue, minOrderAmount,
+    maxDiscountAmount, usageLimit, usagePerUser, startDate, endDate,
+    isFirstOrderOnly, applyTo,
+  } = req.body;
+
+  // Normalize checkbox-group / single-value inputs into arrays
+  const toArray = (v) => (Array.isArray(v) ? v : v ? [v] : []);
+  const applicableCategories = applyTo === 'category' ? toArray(req.body.applicableCategories) : [];
+  const applicableProducts   = applyTo === 'product'  ? toArray(req.body.applicableProducts)   : [];
+  const applicableBrands     = applyTo === 'brand'    ? toArray(req.body.applicableBrands)      : [];
+
+  if (applyTo === 'category' && !applicableCategories.length) {
+    throw ApiError.badRequest('Please select at least one category for this coupon');
+  }
+  if (applyTo === 'product' && !applicableProducts.length) {
+    throw ApiError.badRequest('Please select at least one product for this coupon');
+  }
+  if (applyTo === 'brand' && !applicableBrands.length) {
+    throw ApiError.badRequest('Please select at least one brand for this coupon');
+  }
+
+  await Coupon.create({
+    code: code.toUpperCase(), description, discountType,
+    discountValue: parseFloat(discountValue),
+    minOrderAmount: parseFloat(minOrderAmount) || 0,
+    maxDiscountAmount: maxDiscountAmount ? parseFloat(maxDiscountAmount) : undefined,
+    usageLimit: usageLimit ? parseInt(usageLimit) : null,
+    usagePerUser: parseInt(usagePerUser) || 1,
+    startDate: startDate || new Date(),
+    endDate: new Date(endDate),
+    isFirstOrderOnly: isFirstOrderOnly === 'true',
+    applyTo: applyTo || 'all',
+    applicableCategories,
+    applicableProducts,
+    applicableBrands,
+    createdBy: req.user._id,
+  });
+
+  // Broadcast new coupon push notification
+  await notify.newCoupon(code.toUpperCase(), description || '');
+
+  req.flash('success', 'Coupon created');
+  res.redirect('/admin/coupons');
+});
+
+
+const toggleCoupon = asyncHandler(async (req, res) => {
+  const coupon = await Coupon.findById(req.params.id);
+  if (!coupon) throw ApiError.notFound('Coupon not found');
+  coupon.isActive = !coupon.isActive;
+  await coupon.save();
+  res.json({ success: true, isActive: coupon.isActive });
+});
+
+
+const deleteCoupon = asyncHandler(async (req, res) => {
+  await Coupon.findByIdAndDelete(req.params.id);
+  req.flash('success', 'Coupon deleted');
+  res.redirect('/admin/coupons');
+});
+
+// ==================== OFFERS ====================
+
+
 const getAdminLogin = asyncHandler(async (req, res) => {
   if (req.session?.adminId) return res.redirect('/admin/dashboard');
   res.render('admin/auth/login', { title: 'Admin Login' });
@@ -926,6 +1009,10 @@ module.exports = {
   getOrders,
   getOrderDetail,
   updateOrderStatus,
+  getCoupons,
+  addCoupon,
+  toggleCoupon,
+  deleteCoupon,
   getAdminLogin,
   adminLogin,
   adminLogout,

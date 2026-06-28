@@ -66,4 +66,10 @@ router.post('/orders/:id/status', noCache, requirePermission('manage_orders'), c
 router.post('/orders/:id/mark-paid', noCache, requirePermission('manage_orders'), ctrl.markCodOrderPaid);
 router.post('/orders/print-package-slips', noCache, requirePermission('manage_orders'), ctrl.getPrintPackageSlips);
 
+// ---- Coupons ----
+router.get('/coupons', noCache, requirePermission('manage_coupons'), ctrl.getCoupons);
+router.post('/coupons/add', noCache, requirePermission('manage_coupons'), ctrl.addCoupon);
+router.post('/coupons/:id/toggle', noCache, requirePermission('manage_coupons'), ctrl.toggleCoupon);
+router.post('/coupons/:id/delete', noCache, requirePermission('manage_coupons'), ctrl.deleteCoupon);
+
 module.exports = router;

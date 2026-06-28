@@ -1,0 +1,170 @@
+<% layout('layouts/admin') %>
+<div class="flex items-center justify-between mb-6">
+  <div><h2 class="text-xl font-bold text-white">Coupons</h2></div>
+  <button onclick="document.getElementById('addCouponModal').classList.remove('hidden')" class="flex items-center gap-2 bg-gradient-to-r from-accent-500 to-accent-600 text-primary px-4 py-2.5 rounded-xl font-bold text-sm">
+    <i class="fa-solid fa-plus"></i> Add Coupon
+  </button>
+</div>
+
+<div class="card overflow-hidden">
+  <table class="w-full text-sm">
+    <thead><tr class="text-xs text-gray-500 uppercase tracking-wider border-b border-white/5">
+      <th class="text-left px-5 py-3">Code</th>
+      <th class="text-left px-5 py-3">Discount</th>
+      <th class="text-left px-5 py-3">Min Order</th>
+      <th class="text-left px-5 py-3">Applies To</th>
+      <th class="text-left px-5 py-3">Usage</th>
+      <th class="text-left px-5 py-3">Expires</th>
+      <th class="text-left px-5 py-3">Status</th>
+      <th class="text-left px-5 py-3">Actions</th>
+    </tr></thead>
+    <tbody class="divide-y divide-white/5">
+      <% coupons.forEach(c => {
+        const expired = new Date(c.endDate) < new Date();
+      %>
+      <tr class="hover:bg-white/5 transition-colors">
+        <td class="px-5 py-3">
+          <span class="font-mono font-bold text-accent-400 text-base tracking-wider"><%= c.code %></span>
+          <% if (c.description) { %><p class="text-xs text-gray-500 mt-0.5"><%= c.description %></p><% } %>
+        </td>
+        <td class="px-5 py-3 font-semibold text-green-400">
+          <%= c.discountType === 'percentage' ? c.discountValue + '%' : '₹' + c.discountValue %>
+          <% if (c.maxDiscountAmount) { %><p class="text-xs text-gray-500">Max ₹<%= c.maxDiscountAmount %></p><% } %>
+        </td>
+        <td class="px-5 py-3 text-gray-400">₹<%= c.minOrderAmount || 0 %></td>
+        <td class="px-5 py-3">
+          <% if (!c.applyTo || c.applyTo === 'all') { %>
+          <span class="badge bg-blue-500/20 text-blue-400">All Products</span>
+          <% } else { %>
+          <span class="badge bg-purple-500/20 text-purple-400 capitalize"><%= c.applyTo %></span>
+          <p class="text-xs text-gray-500 mt-1 max-w-[160px] truncate">
+            <% if (c.applyTo === 'category') { %><%= (c.applicableCategories || []).length %> categories<% } %>
+            <% if (c.applyTo === 'product') { %><%= (c.applicableProducts || []).length %> products<% } %>
+            <% if (c.applyTo === 'brand') { %><%= (c.applicableBrands || []).join(', ') %><% } %>
+          </p>
+          <% } %>
+        </td>
+        <td class="px-5 py-3">
+          <span class="text-gray-300"><%= c.usedCount %></span>
+          <span class="text-gray-600">/<%= c.usageLimit || '∞' %></span>
+        </td>
+        <td class="px-5 py-3 text-xs <%= expired ? 'text-red-400' : 'text-gray-400' %>">
+          <%= new Date(c.endDate).toLocaleDateString('en-IN', {day:'numeric',month:'short',year:'numeric'}) %>
+          <% if (expired) { %><p class="text-red-400 font-semibold">Expired</p><% } %>
+        </td>
+        <td class="px-5 py-3">
+          <button onclick="toggleCoupon('<%= c._id %>', this)"
+            class="badge cursor-pointer <%= c.isActive && !expired ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400' %>">
+            <%= c.isActive && !expired ? 'Active' : 'Inactive' %>
+          </button>
+        </td>
+        <td class="px-5 py-3">
+          <form action="/admin/coupons/<%= c._id %>/delete" method="POST" class="inline">
+            <button type="button" onclick="confirmDelete(this.form, 'Delete coupon <%= c.code %>?')" class="p-2 hover:bg-red-900/20 rounded-lg text-red-400 transition-colors"><i class="fa-solid fa-trash-can text-sm"></i></button>
+          </form>
+        </td>
+      </tr>
+      <% }) %>
+      <% if (!coupons.length) { %><tr><td colspan="8" class="px-5 py-12 text-center text-gray-500">No coupons created</td></tr><% } %>
+    </tbody>
+  </table>
+</div>
+
+<!-- Add Coupon Modal -->
+<div id="addCouponModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+  <div class="absolute inset-0 transparent-black" onclick="this.parentElement.classList.add('hidden')"></div>
+  <div class="relative bg-[#1a1a2e] border border-white/10 rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto">
+    <h3 class="font-bold text-white mb-5">Create Coupon</h3>
+    <form action="/admin/coupons/add" method="POST" class="space-y-3">
+      <div class="grid grid-cols-2 gap-3">
+        <div class="col-span-2"><label class="text-xs text-gray-400 block mb-1">Coupon Code *</label><input type="text" name="code" required placeholder="SAVE20" class="w-full rounded-xl px-4 py-3 text-sm uppercase" style="letter-spacing:2px"/></div>
+        <div><label class="text-xs text-gray-400 block mb-1">Discount Type *</label>
+          <select name="discountType" required class="w-full rounded-xl px-4 py-3 text-sm">
+            <option value="percentage">Percentage (%)</option>
+            <option value="fixed">Fixed Amount (₹)</option>
+          </select>
+        </div>
+        <div><label class="text-xs text-gray-400 block mb-1">Discount Value *</label><input type="number" name="discountValue" required min="0" step="0.01" placeholder="10" class="w-full rounded-xl px-4 py-3 text-sm"/></div>
+        <div><label class="text-xs text-gray-400 block mb-1">Min Order Amount</label><input type="number" name="minOrderAmount" min="0" placeholder="0" class="w-full rounded-xl px-4 py-3 text-sm"/></div>
+        <div><label class="text-xs text-gray-400 block mb-1">Max Discount (₹)</label><input type="number" name="maxDiscountAmount" min="0" placeholder="No limit" class="w-full rounded-xl px-4 py-3 text-sm"/></div>
+        <div><label class="text-xs text-gray-400 block mb-1">Total Usage Limit</label><input type="number" name="usageLimit" min="1" placeholder="Unlimited" class="w-full rounded-xl px-4 py-3 text-sm"/></div>
+        <div><label class="text-xs text-gray-400 block mb-1">Per User Limit</label><input type="number" name="usagePerUser" min="1" value="1" class="w-full rounded-xl px-4 py-3 text-sm"/></div>
+        <div><label class="text-xs text-gray-400 block mb-1">Start Date</label><input type="date" name="startDate" class="w-full rounded-xl px-4 py-3 text-sm"/></div>
+        <div><label class="text-xs text-gray-400 block mb-1">End Date *</label><input type="date" name="endDate" required class="w-full rounded-xl px-4 py-3 text-sm"/></div>
+        <div class="col-span-2"><label class="text-xs text-gray-400 block mb-1">Description</label><input type="text" name="description" placeholder="Brief description" class="w-full rounded-xl px-4 py-3 text-sm"/></div>
+
+        <div class="col-span-2">
+          <label class="text-xs text-gray-400 block mb-1">Applies To *</label>
+          <select name="applyTo" id="applyToSelect" onchange="toggleBindingFields()" required class="w-full rounded-xl px-4 py-3 text-sm">
+            <option value="all">All Products</option>
+            <option value="category">Specific Categories</option>
+            <option value="product">Specific Products</option>
+            <option value="brand">Specific Brands</option>
+          </select>
+          <p class="text-xs text-gray-600 mt-1">When not "All Products", the discount is only applied to matching items in the cart.</p>
+        </div>
+
+        <div class="col-span-2 hidden" id="categoryBindingField">
+          <label class="text-xs text-gray-400 block mb-1">Select Categories</label>
+          <select name="applicableCategories" multiple class="w-full rounded-xl px-4 py-2 text-sm" style="min-height:110px">
+            <% categories.forEach(cat => { %>
+            <option value="<%= cat._id %>"><%= cat.name %></option>
+            <% }) %>
+          </select>
+        </div>
+
+        <div class="col-span-2 hidden" id="productBindingField">
+          <label class="text-xs text-gray-400 block mb-1">Select Products</label>
+          <input type="text" id="productSearchInput" placeholder="Filter products..." class="w-full rounded-xl px-4 py-2 text-sm mb-2"/>
+          <select name="applicableProducts" id="productBindingSelect" multiple class="w-full rounded-xl px-4 py-2 text-sm" style="min-height:140px">
+            <% products.forEach(p => { %>
+            <option value="<%= p._id %>" data-label="<%= (p.name + ' ' + (p.brand||'')).toLowerCase() %>"><%= p.name %><%= p.brand ? ' — ' + p.brand : '' %></option>
+            <% }) %>
+          </select>
+        </div>
+
+        <div class="col-span-2 hidden" id="brandBindingField">
+          <label class="text-xs text-gray-400 block mb-1">Select Brands</label>
+          <select name="applicableBrands" multiple class="w-full rounded-xl px-4 py-2 text-sm" style="min-height:110px">
+            <% brands.forEach(b => { %>
+            <option value="<%= b %>"><%= b %></option>
+            <% }) %>
+          </select>
+        </div>
+
+        <div class="col-span-2"><label class="flex items-center gap-2 text-sm text-gray-300 cursor-pointer"><input type="checkbox" name="isFirstOrderOnly" value="true" class="accent-yellow-500"/> First order only</label></div>
+      </div>
+      <div class="flex gap-3 pt-2">
+        <button type="submit" class="flex-1 bg-accent-500 text-primary py-2.5 rounded-xl font-bold text-sm">Create Coupon</button>
+        <button type="button" onclick="document.getElementById('addCouponModal').classList.add('hidden')" class="px-4 py-2.5 border border-white/10 rounded-xl text-gray-400 text-sm">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function toggleBindingFields() {
+  const val = document.getElementById('applyToSelect').value;
+  document.getElementById('categoryBindingField').classList.toggle('hidden', val !== 'category');
+  document.getElementById('productBindingField').classList.toggle('hidden', val !== 'product');
+  document.getElementById('brandBindingField').classList.toggle('hidden', val !== 'brand');
+}
+
+document.getElementById('productSearchInput')?.addEventListener('input', (e) => {
+  const term = e.target.value.trim().toLowerCase();
+  const options = document.getElementById('productBindingSelect').querySelectorAll('option');
+  options.forEach((opt) => {
+    opt.style.display = !term || opt.dataset.label.includes(term) ? '' : 'none';
+  });
+});
+
+async function toggleCoupon(id, btn) {
+  const r = await fetch(`/admin/coupons/${id}/toggle`, { method:'POST' });
+  const d = await r.json();
+  if (d.success) {
+    btn.className = `badge cursor-pointer ${d.isActive ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`;
+    btn.textContent = d.isActive ? 'Active' : 'Inactive';
+    showToast(`Coupon ${d.isActive ? 'activated' : 'deactivated'}`, 'success');
+  }
+}
+</script>
