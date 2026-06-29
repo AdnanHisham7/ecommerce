@@ -1,0 +1,112 @@
+<% layout('layouts/admin') %>
+<div class="flex items-center justify-between mb-6">
+  <div><h2 class="text-xl font-bold text-white">Offers</h2></div>
+  <button onclick="document.getElementById('addOfferModal').classList.remove('hidden')" class="flex items-center gap-2 bg-gradient-to-r from-accent-500 to-accent-600 text-primary px-4 py-2.5 rounded-xl font-bold text-sm">
+    <i class="fa-solid fa-plus"></i> Add Offer
+  </button>
+</div>
+
+<div class="card overflow-hidden mb-6">
+  <table class="w-full text-sm">
+    <thead><tr class="text-xs text-gray-500 uppercase tracking-wider border-b border-white/5">
+      <th class="text-left px-5 py-3">Offer Name</th>
+      <th class="text-left px-5 py-3">Discount</th>
+      <th class="text-left px-5 py-3">Applies To</th>
+      <th class="text-left px-5 py-3">Duration</th>
+      <th class="text-left px-5 py-3">Status</th>
+      <th class="text-left px-5 py-3">Actions</th>
+    </tr></thead>
+    <tbody class="divide-y divide-white/5">
+      <% offers.forEach(offer => { const expired = new Date(offer.endDate) < new Date(); %>
+      <tr class="hover:bg-white/5 transition-colors">
+        <td class="px-5 py-3">
+          <p class="font-medium text-gray-200"><%= offer.name %></p>
+          <% if (offer.description) { %><p class="text-xs text-gray-500"><%= offer.description %></p><% } %>
+        </td>
+        <td class="px-5 py-3 font-bold text-green-400">
+          <%= offer.discountType === 'percentage' ? offer.discountValue + '%' : '₹' + offer.discountValue %> OFF
+        </td>
+        <td class="px-5 py-3"><span class="badge bg-blue-500/20 text-blue-400 capitalize"><%= offer.applicableTo %></span></td>
+        <td class="px-5 py-3 text-xs text-gray-400">
+          <p><%= new Date(offer.startDate).toLocaleDateString('en-IN',{day:'numeric',month:'short'}) %></p>
+          <p class="<%= expired ? 'text-red-400' : '' %>">→ <%= new Date(offer.endDate).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}) %></p>
+        </td>
+        <td class="px-5 py-3">
+          <button onclick="toggleOffer('<%= offer._id %>', this)" class="badge cursor-pointer <%= offer.isActive && !expired ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400' %>">
+            <%= offer.isActive && !expired ? 'Active' : 'Inactive' %>
+          </button>
+        </td>
+        <td class="px-5 py-3">
+          <form action="/admin/offers/<%= offer._id %>/delete" method="POST" class="inline">
+            <button type="button" onclick="confirmDelete(this.form)" class="p-2 hover:bg-red-900/20 rounded-lg text-red-400 transition-colors"><i class="fa-solid fa-trash-can text-sm"></i></button>
+          </form>
+        </td>
+      </tr>
+      <% }) %>
+      <% if (!offers.length) { %><tr><td colspan="6" class="px-5 py-12 text-center text-gray-500">No offers created</td></tr><% } %>
+    </tbody>
+  </table>
+</div>
+
+<!-- Add Offer Modal -->
+<div id="addOfferModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+  <div class="absolute inset-0 transparent-black" onclick="this.parentElement.classList.add('hidden')"></div>
+  <div class="relative bg-[#1a1a2e] border border-white/10 rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto">
+    <h3 class="font-bold text-white mb-5">Create Offer</h3>
+    <form action="/admin/offers/add" method="POST" class="space-y-3">
+      <input type="text" name="name" required placeholder="Offer Name" class="w-full rounded-xl px-4 py-3 text-sm"/>
+      <textarea name="description" rows="2" placeholder="Description (optional)" class="w-full rounded-xl px-4 py-3 text-sm resize-none"></textarea>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="text-xs text-gray-400 block mb-1">Discount Type *</label>
+          <select name="discountType" required class="w-full rounded-xl px-4 py-3 text-sm">
+            <option value="percentage">Percentage (%)</option>
+            <option value="fixed">Fixed (₹)</option>
+          </select>
+        </div>
+        <div><label class="text-xs text-gray-400 block mb-1">Value *</label><input type="number" name="discountValue" required min="0" placeholder="20" class="w-full rounded-xl px-4 py-3 text-sm"/></div>
+        <div><label class="text-xs text-gray-400 block mb-1">Applies To *</label>
+          <select name="applicableTo" required onchange="showApplicable(this.value)" class="w-full rounded-xl px-4 py-3 text-sm">
+            <option value="product">Product</option>
+            <option value="category">Category</option>
+            <option value="brand">Brand</option>
+          </select>
+        </div>
+        <div><label class="text-xs text-gray-400 block mb-1">Max Discount (₹)</label><input type="number" name="maxDiscountAmount" min="0" placeholder="No limit" class="w-full rounded-xl px-4 py-3 text-sm"/></div>
+        <div><label class="text-xs text-gray-400 block mb-1">Start Date</label><input type="date" name="startDate" class="w-full rounded-xl px-4 py-3 text-sm"/></div>
+        <div><label class="text-xs text-gray-400 block mb-1">End Date *</label><input type="date" name="endDate" required class="w-full rounded-xl px-4 py-3 text-sm"/></div>
+      </div>
+      <!-- Products selector -->
+      <div id="productSelector"><label class="text-xs text-gray-400 block mb-1">Select Products</label>
+        <select name="products" multiple class="w-full rounded-xl px-4 py-3 text-sm" size="4">
+          <% products.forEach(p => { %><option value="<%= p._id %>"><%= p.name %></option><% }) %>
+        </select>
+      </div>
+      <!-- Categories selector -->
+      <div id="categorySelector" class="hidden"><label class="text-xs text-gray-400 block mb-1">Select Categories</label>
+        <select name="categories" multiple class="w-full rounded-xl px-4 py-3 text-sm" size="4">
+          <% categories.forEach(c => { %><option value="<%= c._id %>"><%= c.name %></option><% }) %>
+        </select>
+      </div>
+      <div class="flex gap-3 pt-2">
+        <button type="submit" class="flex-1 bg-accent-500 text-primary py-2.5 rounded-xl font-bold text-sm">Create Offer</button>
+        <button type="button" onclick="document.getElementById('addOfferModal').classList.add('hidden')" class="px-4 py-2.5 border border-white/10 rounded-xl text-gray-400 text-sm">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function showApplicable(val) {
+  document.getElementById('productSelector').classList.toggle('hidden', val !== 'product');
+  document.getElementById('categorySelector').classList.toggle('hidden', val !== 'category');
+}
+async function toggleOffer(id, btn) {
+  const r = await fetch(`/admin/offers/${id}/toggle`, { method:'POST' });
+  const d = await r.json();
+  if (d.success) {
+    btn.className = `badge cursor-pointer ${d.isActive ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`;
+    btn.textContent = d.isActive ? 'Active' : 'Inactive';
+    showToast(`Offer ${d.isActive ? 'activated' : 'deactivated'}`, 'success');
+  }
+}
+</script>

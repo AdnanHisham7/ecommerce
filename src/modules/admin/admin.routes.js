@@ -72,4 +72,10 @@ router.post('/coupons/add', noCache, requirePermission('manage_coupons'), ctrl.a
 router.post('/coupons/:id/toggle', noCache, requirePermission('manage_coupons'), ctrl.toggleCoupon);
 router.post('/coupons/:id/delete', noCache, requirePermission('manage_coupons'), ctrl.deleteCoupon);
 
+// ---- Offers ----
+router.get('/offers', noCache, requirePermission('manage_offers'), ctrl.getOffers);
+router.post('/offers/add', noCache, requirePermission('manage_offers'), ctrl.addOffer);
+router.post('/offers/:id/toggle', noCache, requirePermission('manage_offers'), ctrl.toggleOffer);
+router.post('/offers/:id/delete', noCache, requirePermission('manage_offers'), ctrl.deleteOffer);
+
 module.exports = router;

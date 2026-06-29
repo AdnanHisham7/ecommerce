@@ -832,6 +832,100 @@ const deleteCoupon = asyncHandler(async (req, res) => {
 // ==================== OFFERS ====================
 
 
+const getOffers = asyncHandler(async (req, res) => {
+  const [offers, categories, products] = await Promise.all([
+    Offer.find().populate('products', 'name').populate('categories', 'name').sort({ createdAt: -1 }).lean(),
+    Category.find({ isActive: true }).lean(),
+    Product.find({ isActive: true }).select('name').lean(),
+  ]);
+  res.render('admin/offers/index', { title: 'Offers', offers, categories, products });
+});
+
+
+const addOffer = asyncHandler(async (req, res) => {
+  const {
+    name, description, discountType, discountValue, maxDiscountAmount,
+    applicableTo, products, categories, brands, startDate, endDate, priority,
+  } = req.body;
+
+  const offer = await Offer.create({
+    name, description, discountType, discountValue: parseFloat(discountValue),
+    maxDiscountAmount: maxDiscountAmount ? parseFloat(maxDiscountAmount) : undefined,
+    applicableTo, priority: parseInt(priority) || 0,
+    products: products ? (Array.isArray(products) ? products : [products]) : [],
+    categories: categories ? (Array.isArray(categories) ? categories : [categories]) : [],
+    brands: brands ? (Array.isArray(brands) ? brands : [brands]) : [],
+    startDate: startDate || new Date(),
+    endDate: new Date(endDate),
+    createdBy: req.user._id,
+  });
+
+  await applyOffer(offer);
+
+  // Broadcast push + socket to all users
+  const discountText = offer.discountType === 'percentage'
+    ? `${offer.discountValue}% off`
+    : `₹${offer.discountValue} off`;
+  await notify.newOffer(offer.name, discountText);
+
+  req.flash('success', 'Offer created and applied');
+  res.redirect('/admin/offers');
+});
+
+const applyOffer = async (offer) => {
+  const now = new Date();
+  if (!offer.isActive || offer.endDate < now) return;
+
+  if (offer.applicableTo === 'product') {
+    const products = await Product.find({ _id: { $in: offer.products } });
+    for (const p of products) {
+      const discount = offer.calculateDiscount(p.basePrice);
+      p.activeOffer = offer._id;
+      p.discountedPrice = p.basePrice - discount;
+      p.discountPercent = offer.discountType === 'percentage' ? offer.discountValue : Math.round((discount / p.basePrice) * 100);
+      await p.save();
+    }
+  } else if (offer.applicableTo === 'category') {
+    const products = await Product.find({ category: { $in: offer.categories }, isActive: true });
+    for (const p of products) {
+      const discount = offer.calculateDiscount(p.basePrice);
+      p.activeOffer = offer._id;
+      p.discountedPrice = p.basePrice - discount;
+      p.discountPercent = offer.discountType === 'percentage' ? offer.discountValue : Math.round((discount / p.basePrice) * 100);
+      await p.save();
+    }
+  }
+};
+
+
+const toggleOffer = asyncHandler(async (req, res) => {
+  const offer = await Offer.findById(req.params.id);
+  if (!offer) throw ApiError.notFound('Offer not found');
+  offer.isActive = !offer.isActive;
+  await offer.save();
+
+  if (!offer.isActive) {
+    await Product.updateMany({ activeOffer: offer._id }, { $unset: { activeOffer: 1, discountedPrice: 1 }, discountPercent: 0 });
+  } else {
+    await applyOffer(offer);
+  }
+
+  res.json({ success: true, isActive: offer.isActive });
+});
+
+
+const deleteOffer = asyncHandler(async (req, res) => {
+  const offer = await Offer.findByIdAndDelete(req.params.id);
+  if (offer) {
+    await Product.updateMany({ activeOffer: offer._id }, { $unset: { activeOffer: 1, discountedPrice: 1 }, discountPercent: 0 });
+  }
+  req.flash('success', 'Offer deleted');
+  res.redirect('/admin/offers');
+});
+
+// ==================== BANNERS ====================
+
+
 const getAdminLogin = asyncHandler(async (req, res) => {
   if (req.session?.adminId) return res.redirect('/admin/dashboard');
   res.render('admin/auth/login', { title: 'Admin Login' });
@@ -1013,6 +1107,10 @@ module.exports = {
   addCoupon,
   toggleCoupon,
   deleteCoupon,
+  getOffers,
+  addOffer,
+  toggleOffer,
+  deleteOffer,
   getAdminLogin,
   adminLogin,
   adminLogout,
