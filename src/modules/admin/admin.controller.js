@@ -926,6 +926,103 @@ const deleteOffer = asyncHandler(async (req, res) => {
 // ==================== BANNERS ====================
 
 
+const getBanners = asyncHandler(async (req, res) => {
+  const banners = await Banner.find().sort('sortOrder').lean();
+  res.render('admin/banners/index', { title: 'Banners', banners });
+});
+
+
+const addBanner = asyncHandler(async (req, res) => {
+  const { title, subtitle, link, position, ctaText, startDate, endDate } = req.body;
+  if (!req.file) throw ApiError.badRequest('Banner image is required');
+
+  // Auto-assign next sort order (highest current + 1)
+  const lastBanner = await Banner.findOne().sort('-sortOrder');
+  const nextSortOrder = (lastBanner?.sortOrder ?? -1) + 1;
+
+  await Banner.create({
+    title, subtitle, link, position, ctaText,
+    sortOrder: nextSortOrder,
+    image: req.file.path, imagePublicId: req.file.filename,
+    startDate: startDate || null, endDate: endDate || null,
+    createdBy: req.user._id,
+  });
+  req.flash('success', 'Banner added');
+  res.redirect('/admin/banners');
+});
+
+
+const updateBanner = asyncHandler(async (req, res) => {
+  const banner = await Banner.findById(req.params.id);
+  if (!banner) throw ApiError.notFound('Banner not found');
+
+  const { title, subtitle, link, position, ctaText, sortOrder, startDate, endDate, isActive } = req.body;
+
+  const updates = {
+    title,
+    subtitle,
+    link,
+    position,
+    ctaText,
+    sortOrder: parseInt(sortOrder) || 0,
+    startDate: startDate || null,
+    endDate: endDate || null,
+    isActive: isActive === 'true',
+    updatedBy: req.user._id,
+  };
+
+  if (req.file) {
+    if (banner.imagePublicId) {
+      await deleteImage(banner.imagePublicId).catch(() => {});
+    }
+    updates.image = req.file.path;
+    updates.imagePublicId = req.file.filename;
+  }
+
+  await Banner.findByIdAndUpdate(req.params.id, updates, { runValidators: true });
+  
+  req.flash('success', 'Banner updated successfully');
+  res.redirect('/admin/banners');
+});
+
+
+const toggleBanner = asyncHandler(async (req, res) => {
+  const banner = await Banner.findById(req.params.id);
+  if (!banner) throw ApiError.notFound('Banner not found');
+  banner.isActive = !banner.isActive;
+  await banner.save();
+  res.json({ success: true, isActive: banner.isActive });
+});
+
+
+const reorderBanners = asyncHandler(async (req, res) => {
+  const { order } = req.body; // Array of banner IDs in their new sequential order
+  
+  if (!Array.isArray(order)) {
+    throw ApiError.badRequest('Invalid order format expected');
+  }
+
+  // Perform bulk updates sequentially based on the array index
+  const updatePromises = order.map((id, index) => {
+    return Banner.findByIdAndUpdate(id, { sortOrder: index });
+  });
+
+  await Promise.all(updatePromises);
+
+  res.json({ success: true, message: 'Banners reordered successfully' });
+});
+
+
+const deleteBanner = asyncHandler(async (req, res) => {
+  const banner = await Banner.findByIdAndDelete(req.params.id);
+  if (banner?.imagePublicId) await deleteImage(banner.imagePublicId).catch(() => {});
+  req.flash('success', 'Banner deleted');
+  res.redirect('/admin/banners');
+});
+
+// ==================== ANALYTICS ====================
+
+
 const getAdminLogin = asyncHandler(async (req, res) => {
   if (req.session?.adminId) return res.redirect('/admin/dashboard');
   res.render('admin/auth/login', { title: 'Admin Login' });
@@ -959,9 +1056,45 @@ const adminLogout = asyncHandler(async (req, res) => {
   req.session.destroy(() => res.redirect('/admin/login'));
 });
 
-// ==================== STOCK MANAGEMENT ====================
+// ==================== HOMEPAGE LAYOUT ====================
+const SECTION_META = {
+  hero:           { label: 'Hero Banner Carousel',   desc: 'Rotating banners set under Banners — hidden automatically if none are active' },
+  usp:            { label: 'Trust / USP Bar',        desc: 'Free shipping, returns, brands, rating strip' },
+  bestSellers:    { label: 'Best Sellers',           desc: 'Top-selling products' },
+  categories:     { label: 'Shop by Category',       desc: 'Category grid' },
+  newArrivals:    { label: 'New Arrivals',           desc: 'Recently added products' },
+  featured:       { label: 'Featured Products',      desc: 'Hand-picked products (isFeatured)' },
+  reviews:        { label: 'Customer Reviews',       desc: 'Testimonial strip' },
+  brands:         { label: 'Brand Logos Strip',      desc: 'Stocked-brands showcase' },
+  referral:       { label: 'Referral Program Banner',desc: 'Only shown when the Referral Program feature flag is ON' },
+  recentlyViewed: { label: 'Recently Viewed',        desc: 'Shown only to logged-in users with browsing history' },
+  finalCta:       { label: 'Final Call-to-Action',   desc: '"Ready to Gear Up" closing strip' },
+};
+
+const getHomepageLayoutPage = asyncHandler(async (req, res) => {
+  const order = await Setting.getHomepageLayout();
+  res.render('admin/homepage-layout', { title: 'Homepage Layout', order, sectionMeta: SECTION_META });
+});
 
 
+const getHomepageLayoutSettings = asyncHandler(async (req, res) => {
+  const order = await Setting.getHomepageLayout();
+  res.json({ success: true, order });
+});
+
+
+const updateHomepageLayout = asyncHandler(async (req, res) => {
+  const { order } = req.body;
+  try {
+    const saved = await Setting.setHomepageLayout(order, req.user._id);
+    await AuditLog.create({ user: req.user._id, action: 'homepage_layout_update', details: { order: saved }, ip: req.ip });
+    res.json({ success: true, order: saved });
+  } catch (err) {
+    throw ApiError.badRequest(err.message || 'Invalid layout order');
+  }
+});
+
+// ==================== PACKAGE SLIP SETTINGS ====================
 const getPrintPackageSlips = asyncHandler(async (req, res) => {
   const { orderIds } = req.body;
   if (!orderIds || !Array.isArray(orderIds) || orderIds.length === 0) {
@@ -1111,9 +1244,18 @@ module.exports = {
   addOffer,
   toggleOffer,
   deleteOffer,
+  getBanners,
+  addBanner,
+  updateBanner,
+  toggleBanner,
+  reorderBanners,
+  deleteBanner,
   getAdminLogin,
   adminLogin,
   adminLogout,
+  getHomepageLayoutPage,
+  getHomepageLayoutSettings,
+  updateHomepageLayout,
   getPrintPackageSlips,
   markCodOrderPaid,
 };

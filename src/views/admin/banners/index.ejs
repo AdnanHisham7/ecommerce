@@ -1,0 +1,229 @@
+<% layout('layouts/admin') %>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+
+<div class="flex items-center justify-between mb-6">
+  <div>
+    <h2 class="text-xl font-bold text-white">Banners</h2>
+    <p class="text-xs text-gray-400 mt-1"><i class="fa-solid fa-arrows-up-down-left-right mr-1"></i> Drag and drop cards to adjust home page priority</p>
+  </div>
+  <button onclick="document.getElementById('addBannerModal').classList.remove('hidden')" class="flex items-center gap-2 bg-gradient-to-r from-accent-500 to-accent-600 text-primary px-4 py-2.5 rounded-xl font-bold text-sm">
+    <i class="fa-solid fa-plus"></i> Add Banner
+  </button>
+</div>
+
+<div id="bannerGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+  <% banners.forEach(banner => { %>
+  <div class="card overflow-hidden group border border-transparent hover:border-accent-500/30 cursor-move transition-all" data-id="<%= banner._id %>">
+    <div class="relative h-40 bg-gray-800">
+      <img src="<%= banner.image %>" alt="<%= banner.title %>" class="w-full h-full object-cover"/>
+      <div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
+      
+      <div class="absolute top-2 left-2 bg-black/60 text-white w-7 h-7 rounded-lg flex items-center justify-center opacity-70 group-hover:opacity-100 transition-opacity">
+        <i class="fa-solid fa-grip-vertical text-xs"></i>
+      </div>
+
+      <div class="absolute bottom-0 left-0 right-0 p-3">
+        <p class="font-bold text-white text-sm truncate"><%= banner.title %></p>
+        <p class="text-gray-300 text-xs truncate"><%= banner.subtitle || '' %></p>
+      </div>
+      <div class="absolute top-2 right-2 flex gap-2">
+        <span class="badge capitalize transparent-black text-gray-300 backdrop-blur-sm"><%= banner.position %></span>
+      </div>
+    </div>
+    <div class="p-3 flex items-center justify-between bg-[#151526]">
+      <button onclick="toggleBanner('<%= banner._id %>', this)" class="badge cursor-pointer <%= banner.isActive ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400' %>">
+        <%= banner.isActive ? 'Active' : 'Inactive' %>
+      </button>
+      <div class="flex items-center gap-1">
+        <button type="button" 
+                onclick="openEditModal(<%= JSON.stringify(banner) %>)" 
+                class="p-1.5 hover:bg-white/5 rounded-lg text-gray-400 hover:text-white transition-colors">
+          <i class="fa-solid fa-pen text-sm"></i>
+        </button>
+        
+        <form action="/admin/banners/<%= banner._id %>/delete" method="POST" class="inline">
+          <button type="button" onclick="confirmDelete(this.form, 'Delete banner?')" class="p-1.5 hover:bg-red-900/20 rounded-lg text-red-400 transition-colors">
+            <i class="fa-solid fa-trash-can text-sm"></i>
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+  <% }) %>
+  <% if (!banners.length) { %>
+  <div class="col-span-full text-center py-16 text-gray-500"><i class="fa-solid fa-image text-3xl mb-3 block"></i><p>No banners added yet</p></div>
+  <% } %>
+</div>
+
+<div id="addBannerModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+  <div class="absolute inset-0 transparent-black" onclick="this.parentElement.classList.add('hidden')"></div>
+  <div class="relative bg-[#1a1a2e] border border-white/10 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+    <h3 class="font-bold text-white mb-5">Add Banner</h3>
+    <form action="/admin/banners/add" method="POST" enctype="multipart/form-data" class="space-y-3">
+      <input type="text" name="title" required placeholder="Banner Title" class="w-full rounded-xl px-4 py-3 text-sm"/>
+      <input type="text" name="subtitle" placeholder="Subtitle (optional)" class="w-full rounded-xl px-4 py-3 text-sm"/>
+      <input type="url" name="link" placeholder="Link URL (optional)" class="w-full rounded-xl px-4 py-3 text-sm"/>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="text-xs text-gray-400 block mb-1">Position</label>
+          <select name="position" class="w-full rounded-xl px-4 py-3 text-sm">
+            <% ['hero','home_middle','sidebar','popup','category'].forEach(p => { %><option value="<%= p %>"><%= p %></option><% }) %>
+          </select>
+        </div>
+        <div><label class="text-xs text-gray-400 block mb-1">CTA Text</label><input type="text" name="ctaText" value="Shop Now" class="w-full rounded-xl px-4 py-3 text-sm"/></div>
+        <div><label class="text-xs text-gray-400 block mb-1">Sort Order</label><input type="number" name="sortOrder" value="0" class="w-full rounded-xl px-4 py-3 text-sm"/></div>
+      </div>
+      <div class="border-2 border-dashed border-white/10 rounded-xl p-6 text-center hover:border-accent-500/50 cursor-pointer" onclick="document.getElementById('bannerImg').click()">
+        <i class="fa-solid fa-cloud-arrow-up text-3xl text-gray-500 mb-2 block"></i>
+        <p class="text-sm text-gray-400">Upload Banner Image *</p>
+        <input type="file" id="bannerImg" name="image" accept="image/*" required class="hidden" onchange="previewBanner(this)"/>
+      </div>
+      <img id="bannerPreview" class="w-full h-28 object-cover rounded-xl hidden"/>
+      <div class="flex gap-3 pt-2">
+        <button type="submit" class="flex-1 bg-accent-500 text-primary py-2.5 rounded-xl font-bold text-sm">Add Banner</button>
+        <button type="button" onclick="document.getElementById('addBannerModal').classList.add('hidden')" class="px-4 py-2.5 border border-white/10 rounded-xl text-gray-400 text-sm">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="editBannerModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+  <div class="absolute inset-0 transparent-black" onclick="this.parentElement.classList.add('hidden')"></div>
+  <div class="relative bg-[#1a1a2e] border border-white/10 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+    <h3 class="font-bold text-white mb-5">Edit Banner</h3>
+    <form id="editBannerForm" action="" method="POST" enctype="multipart/form-data" class="space-y-3">
+      <input type="text" id="edit_title" name="title" required placeholder="Banner Title" class="w-full rounded-xl px-4 py-3 text-sm"/>
+      <input type="text" id="edit_subtitle" name="subtitle" placeholder="Subtitle (optional)" class="w-full rounded-xl px-4 py-3 text-sm"/>
+      <input type="url" id="edit_link" name="link" placeholder="Link URL (optional)" class="w-full rounded-xl px-4 py-3 text-sm"/>
+      
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs text-gray-400 block mb-1">Position</label>
+          <select id="edit_position" name="position" class="w-full rounded-xl px-4 py-3 text-sm">
+            <% ['hero','home_middle','sidebar','popup','category'].forEach(p => { %>
+              <option value="<%= p %>"><%= p %></option>
+            <% }) %>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs text-gray-400 block mb-1">CTA Text</label>
+          <input type="text" id="edit_ctaText" name="ctaText" class="w-full rounded-xl px-4 py-3 text-sm"/>
+        </div>
+        <div>
+          <label class="text-xs text-gray-400 block mb-1">Sort Order</label>
+          <input type="number" id="edit_sortOrder" name="sortOrder" class="w-full rounded-xl px-4 py-3 text-sm"/>
+        </div>
+        <div>
+          <label class="text-xs text-gray-400 block mb-1">Status</label>
+          <select id="edit_isActive" name="isActive" class="w-full rounded-xl px-4 py-3 text-sm">
+            <option value="true">Active</option>
+            <option value="false">Inactive</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="border-2 border-dashed border-white/10 rounded-xl p-4 text-center hover:border-accent-500/50 cursor-pointer" onclick="document.getElementById('editBannerImg').click()">
+        <i class="fa-solid fa-image text-2xl text-gray-500 mb-1 block"></i>
+        <p class="text-xs text-gray-400">Change Image (Leave blank to keep old image)</p>
+        <input type="file" id="editBannerImg" name="image" accept="image/*" class="hidden" onchange="previewEditBanner(this)"/>
+      </div>
+      
+      <img id="editBannerPreview" class="w-full h-28 object-cover rounded-xl mt-2"/>
+
+      <div class="flex gap-3 pt-2">
+        <button type="submit" class="flex-1 bg-accent-500 text-primary py-2.5 rounded-xl font-bold text-sm">Save Changes</button>
+        <button type="button" onclick="document.getElementById('editBannerModal').classList.add('hidden')" class="px-4 py-2.5 border border-white/10 rounded-xl text-gray-400 text-sm">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+// Initialize SortableJS on the banner grid wrapper
+// Replace your initialization snippet with this window check wrapper
+function initSortable() {
+  const el = document.getElementById('bannerGrid');
+  if (el && typeof Sortable !== 'undefined') {
+    Sortable.create(el, {
+      animation: 150,
+      ghostClass: 'opacity-40',
+      onEnd: async function () {
+        const currentOrder = Array.from(el.children)
+          .map(item => item.getAttribute('data-id'))
+          .filter(id => id);
+
+        try {
+          const response = await fetch('/admin/banners/reorder', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ order: currentOrder })
+          });
+          
+          const data = await response.json();
+          if (data.success) {
+            window.location.reload();
+          }
+        } catch (err) {
+          console.error('Error reordering banners:', err);
+        }
+      }
+    });
+  }
+}
+
+// Execute safely regardless of script load speeds
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+  initSortable();
+} else {
+  document.addEventListener('DOMContentLoaded', initSortable);
+}
+
+async function toggleBanner(id, btn) {
+  const r = await fetch(`/admin/banners/${id}/toggle`, { method:'POST' });
+  const d = await r.json();
+  if (d.success) {
+    btn.className = `badge cursor-pointer ${d.isActive ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`;
+    btn.textContent = d.isActive ? 'Active' : 'Inactive';
+  }
+}
+
+function previewBanner(input) {
+  const preview = document.getElementById('bannerPreview');
+  if (input.files[0]) {
+    const reader = new FileReader();
+    reader.onload = e => { preview.src = e.target.result; preview.classList.remove('hidden'); };
+    reader.readAsDataURL(input.files[0]);
+  }
+}
+
+function openEditModal(banner) {
+  document.getElementById('editBannerForm').action = `/admin/banners/${banner._id}/edit`;
+  
+  document.getElementById('edit_title').value = banner.title || '';
+  document.getElementById('edit_subtitle').value = banner.subtitle || '';
+  document.getElementById('edit_link').value = banner.link || '';
+  document.getElementById('edit_position').value = banner.position;
+  document.getElementById('edit_ctaText').value = banner.ctaText || 'Shop Now';
+  document.getElementById('edit_sortOrder').value = banner.sortOrder || 0;
+  document.getElementById('edit_isActive').value = banner.isActive ? 'true' : 'false';
+  
+  // Update view panel rendering previews
+  const preview = document.getElementById('editBannerPreview');
+  preview.src = banner.image;
+  preview.classList.remove('hidden');
+
+  // Trigger modal visibility rendering adjustments
+  document.getElementById('editBannerModal').classList.remove('hidden');
+}
+
+function previewEditBanner(input) {
+  const preview = document.getElementById('editBannerPreview');
+  if (input.files[0]) {
+    const reader = new FileReader();
+    reader.onload = e => { 
+      preview.src = e.target.result; 
+    };
+    reader.readAsDataURL(input.files[0]);
+  }
+}
+
+</script>

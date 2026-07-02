@@ -4,7 +4,7 @@ const ctrl = require('./admin.controller');
 const { adminAuthenticate, requirePermission } = require('../../middlewares/auth.middleware');
 const noCache = require('../../middlewares/noCache.middleware');
 const { adminLimiter } = require('../../middlewares/rateLimit.middleware');
-const { productUpload, avatarUpload } = require('../../config/cloudinary');
+const { productUpload, avatarUpload, bannerUpload } = require('../../config/cloudinary');
 
 // ---- Admin Auth (no middleware) ----
 router.get('/login', ctrl.getAdminLogin);
@@ -77,5 +77,18 @@ router.get('/offers', noCache, requirePermission('manage_offers'), ctrl.getOffer
 router.post('/offers/add', noCache, requirePermission('manage_offers'), ctrl.addOffer);
 router.post('/offers/:id/toggle', noCache, requirePermission('manage_offers'), ctrl.toggleOffer);
 router.post('/offers/:id/delete', noCache, requirePermission('manage_offers'), ctrl.deleteOffer);
+
+// ---- Banners ----
+router.get('/banners', noCache, requirePermission('manage_banners'), ctrl.getBanners);
+router.post('/banners/add', bannerUpload.single('image'), noCache, requirePermission('manage_banners'), ctrl.addBanner);
+router.post('/banners/:id/edit', bannerUpload.single('image'), noCache, requirePermission('manage_banners'), ctrl.updateBanner);
+router.post('/banners/:id/toggle', noCache, requirePermission('manage_banners'), ctrl.toggleBanner);
+router.post('/banners/:id/delete', noCache, requirePermission('manage_banners'), ctrl.deleteBanner);
+router.post('/banners/reorder', noCache, requirePermission('manage_banners'), ctrl.reorderBanners);
+
+// ---- Homepage Layout ----
+router.get('/homepage-layout', noCache, requirePermission('manage_settings'), ctrl.getHomepageLayoutPage);
+router.get('/homepage-layout/data', noCache, requirePermission('manage_settings'), ctrl.getHomepageLayoutSettings);
+router.post('/homepage-layout', noCache, requirePermission('manage_settings'), ctrl.updateHomepageLayout);
 
 module.exports = router;
