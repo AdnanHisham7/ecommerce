@@ -33,24 +33,20 @@ router.post('/cart/coupon/remove', optionalAuth, cartCtrl.removeCoupon);
 // merged into their account at that point — see auth.controller.js).
 router.get('/checkout', requireAuth, orderCtrl.getCheckoutPage);
 router.post('/checkout/place-order', requireAuth, orderCtrl.placeOrder);
+router.post('/checkout/verify-payment', requireAuth, orderCtrl.verifyPayment);
+router.post('/checkout/fail-payment', requireAuth, orderCtrl.failPayment);
 // Buy Now is allowed for guests: it adds the item to their session cart and
 // sends them to /cart to keep browsing, rather than forcing an immediate login.
 router.post('/buy-now', optionalAuth, orderCtrl.buyNow);
+router.get('/orders', requireAuth, orderCtrl.getOrders);
 router.get('/orders/success/:orderId', requireAuth, orderCtrl.getOrderSuccess);
-router.post('/checkout/verify-payment', requireAuth, orderCtrl.verifyPayment);
-router.post('/checkout/fail-payment', requireAuth, orderCtrl.failPayment);
+router.get('/orders/:id', requireAuth, orderCtrl.getOrderDetail);
+router.post('/orders/:id/cancel', requireAuth, orderCtrl.cancelOrder);
 router.post('/orders/:id/retry-payment', requireAuth, orderCtrl.retryPayment);
+router.get('/orders/:id/invoice', requireAuth, orderCtrl.downloadInvoice);
 
 // ---- Razorpay Webhook (raw body) ----
 router.post('/webhook/razorpay', orderCtrl.razorpayWebhook);
-router.get('/orders', requireAuth, orderCtrl.getOrders);
-router.get('/orders/:id', requireAuth, orderCtrl.getOrderDetail);
-router.post('/orders/:id/cancel', requireAuth, orderCtrl.cancelOrder);
-router.get('/orders/:id/invoice', requireAuth, orderCtrl.downloadInvoice);
-
-// ---- Wishlist ----
-router.get('/wishlist', requireAuth, userCtrl.getWishlist);
-router.post('/wishlist/toggle', requireAuth, userCtrl.toggleWishlist);
 
 // ---- User Dashboard & Profile ----
 router.get('/dashboard', authenticate, userCtrl.getDashboard);
@@ -64,8 +60,16 @@ router.post('/profile/addresses/add', requireAuth, userCtrl.addAddress);
 router.post('/profile/addresses/:addressId/update', requireAuth, userCtrl.updateAddress);
 router.delete('/profile/addresses/:addressId', requireAuth, userCtrl.deleteAddress);
 
+// ---- Wishlist ----
+router.get('/wishlist', requireAuth, userCtrl.getWishlist);
+router.post('/wishlist/toggle', requireAuth, userCtrl.toggleWishlist);
+
 // ---- Wallet ----
 router.get('/wallet', requireAuth, userCtrl.getWallet);
+
+// ---- Notifications ----
+router.get('/notifications', requireAuth, userCtrl.getNotifications);
+router.post('/notifications/read', requireAuth, userCtrl.markNotificationsRead);
 
 // ---- Preferences ----
 router.post('/preferences', requireAuth, userCtrl.updatePreferences);

@@ -11,7 +11,6 @@ const env = require('../../config/env');
 const Setting = require('../settings/settings.model');
 
 // ============ DASHBOARD ============
-
 const getDashboard = asyncHandler(async (req, res) => {
   const [recentOrders, wishlist, user] = await Promise.all([
     Order.find({ user: req.session.userId }).sort({ createdAt: -1 }).limit(5).lean(),
@@ -47,13 +46,10 @@ const getDashboard = asyncHandler(async (req, res) => {
 });
 
 // ============ PROFILE ============
-
-
 const getProfile = asyncHandler(async (req, res) => {
   const user = await User.findById(req.session.userId).lean();
   res.render('user/profile', { title: 'My Profile', currentUser:user });
 });
-
 
 const updateProfile = asyncHandler(async (req, res) => {
   const { name, phone, dateOfBirth, gender } = req.body;
@@ -85,7 +81,6 @@ const updateProfile = asyncHandler(async (req, res) => {
   res.redirect("/profile");
 });
 
-
 const changePassword = asyncHandler(async (req, res) => {
   const { currentPassword, newPassword, confirmPassword } = req.body;
   
@@ -110,13 +105,10 @@ const changePassword = asyncHandler(async (req, res) => {
 });
 
 // ============ ADDRESSES ============
-
-
 const getAddresses = asyncHandler(async (req, res) => {
   const user = await User.findById(req.session.userId).lean();
   res.render('user/addresses', { title: 'My Addresses', addresses: user.addresses || [] });
 });
-
 
 const addAddress = asyncHandler(async (req, res) => {
   const { fullName, phone, addressLine1, addressLine2, city, state, pincode, country, addressType, isDefault } = req.body;
@@ -134,7 +126,6 @@ const addAddress = asyncHandler(async (req, res) => {
   req.flash('success', 'Address added successfully');
   res.redirect('/profile/addresses');
 });
-
 
 const updateAddress = asyncHandler(async (req, res) => {
   const { addressId } = req.params;
@@ -155,7 +146,6 @@ const updateAddress = asyncHandler(async (req, res) => {
   res.redirect('/profile/addresses');
 });
 
-
 const deleteAddress = asyncHandler(async (req, res) => {
   const user = await User.findById(req.session.userId);
   user.addresses.pull(req.params.addressId);
@@ -164,8 +154,6 @@ const deleteAddress = asyncHandler(async (req, res) => {
 });
 
 // ============ WISHLIST ============
-
-
 const getWishlist = asyncHandler(async (req, res) => {
   const user = await User.findById(req.session?.userId);
   if (!user) throw ApiError.unauthorized('Please log in to view your orders');
@@ -183,7 +171,6 @@ const getWishlist = asyncHandler(async (req, res) => {
     currentUser: user,
   });
 });
-
 
 const toggleWishlist = asyncHandler(async (req, res) => {
   const { productId } = req.body;
@@ -211,8 +198,6 @@ const toggleWishlist = asyncHandler(async (req, res) => {
 });
 
 // ============ WALLET ============
-
-
 const getWallet = asyncHandler(async (req, res) => {
   const user = await User.findById(req.session.userId).lean();
   const transactions = user.walletTransactions.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
@@ -225,8 +210,23 @@ const getWallet = asyncHandler(async (req, res) => {
 });
 
 // ============ NOTIFICATIONS ============
+const getNotifications = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.session.userId).lean();
+  res.json({
+    success: true,
+    notifications: user.notifications.slice(-20).reverse(),
+    unreadCount: user.notifications.filter((n) => !n.isRead).length,
+  });
+});
 
+const markNotificationsRead = asyncHandler(async (req, res) => {
+  await User.findByIdAndUpdate(req.session.userId, {
+    $set: { 'notifications.$[].isRead': true },
+  });
+  res.json({ success: true });
+});
 
+// ============ PREFERENCES ============
 const updatePreferences = asyncHandler(async (req, res) => {
   const { theme, emailNotifications, pushNotifications, orderUpdates, promotions } = req.body;
   await User.findByIdAndUpdate(req.session.userId, {
@@ -241,15 +241,12 @@ const updatePreferences = asyncHandler(async (req, res) => {
 });
 
 // ============ 2FA SETUP ============
-
-
 const setup2FA = asyncHandler(async (req, res) => {
   const secret = speakeasy.generateSecret({ name: `${env.app.name} (${req.user.email})`, length: 20 });
   req.session.twoFASetupSecret = secret.base32;
   const qrCode = await QRCode.toDataURL(secret.otpauth_url);
   res.json({ success: true, qrCode, secret: secret.base32 });
 });
-
 
 const enable2FA = asyncHandler(async (req, res) => {
   const { token } = req.body;
@@ -267,7 +264,6 @@ const enable2FA = asyncHandler(async (req, res) => {
   res.json({ success: true, message: '2FA enabled successfully' });
 });
 
-
 const disable2FA = asyncHandler(async (req, res) => {
   const { token } = req.body;
   const user = await User.findById(req.session.userId).select('+twoFactorSecret');
@@ -279,8 +275,6 @@ const disable2FA = asyncHandler(async (req, res) => {
 });
 
 // ============ REFERRAL ============
-
-
 const getReferral = asyncHandler(async (req, res) => {
   // Guard: redirect away if referral program is disabled
   const flags = res.locals.featureFlags || await Setting.getFeatureFlags();
@@ -302,22 +296,14 @@ const getReferral = asyncHandler(async (req, res) => {
   });
 });
 
-
 module.exports = {
   getDashboard,
-  getProfile,
-  updateProfile,
-  changePassword,
-  getAddresses,
-  addAddress,
-  updateAddress,
-  deleteAddress,
-  getWishlist,
-  toggleWishlist,
+  getProfile, updateProfile, changePassword,
+  getAddresses, addAddress, updateAddress, deleteAddress,
+  getWishlist, toggleWishlist,
   getWallet,
+  getNotifications, markNotificationsRead,
   updatePreferences,
-  setup2FA,
-  enable2FA,
-  disable2FA,
+  setup2FA, enable2FA, disable2FA,
   getReferral,
 };
