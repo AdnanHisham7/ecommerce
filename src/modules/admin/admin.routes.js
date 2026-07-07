@@ -18,6 +18,12 @@ router.use(adminAuthenticate);
 router.get('/', (req, res) => res.redirect('/admin/dashboard'));
 router.get('/dashboard', noCache, ctrl.getDashboard);
 
+// ---- Analytics ----
+router.get('/analytics', noCache, requirePermission('view_analytics'), ctrl.getAnalytics);
+
+// ---- Audit Logs ----
+router.get('/audit-logs', noCache, requirePermission('view_analytics'), ctrl.getAuditLogs);
+
 // ---- Products ----
 router.get('/products', noCache, requirePermission('manage_products'), ctrl.getProducts);
 router.get('/products/add', noCache, requirePermission('manage_products'), ctrl.getAddProduct);

@@ -1023,6 +1023,76 @@ const deleteBanner = asyncHandler(async (req, res) => {
 // ==================== ANALYTICS ====================
 
 
+const getAnalytics = asyncHandler(async (req, res) => {
+  const { period = '30' } = req.query;
+  const days = parseInt(period);
+  const startDate = moment().subtract(days, 'days').toDate();
+
+  const [revenueData, orderData, topProducts, topCategories, userGrowth, paymentMethods] = await Promise.all([
+    Order.aggregate([
+      { $match: { paymentStatus: 'paid', createdAt: { $gte: startDate } } },
+      { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } }, revenue: { $sum: '$totalAmount' }, orders: { $sum: 1 } } },
+      { $sort: { _id: 1 } },
+    ]),
+    Order.aggregate([
+      { $match: { createdAt: { $gte: startDate } } },
+      { $group: { _id: '$orderStatus', count: { $sum: 1 } } },
+    ]),
+    Product.find({ isActive: true }).sort({ salesCount: -1 }).limit(10).select('name slug images thumbnail basePrice compareAtPrice discountPercent discountedPrice avgRating reviewCount stockStatus brand isFeatured isNewArrival variantType colorVariants variants description shortDescription').lean(),
+    Order.aggregate([
+      { $match: { paymentStatus: 'paid', createdAt: { $gte: startDate } } },
+      { $unwind: '$items' },
+      { $lookup: { from: 'products', localField: 'items.product', foreignField: '_id', as: 'product' } },
+      { $unwind: '$product' },
+      { $lookup: { from: 'categories', localField: 'product.category', foreignField: '_id', as: 'category' } },
+      { $unwind: '$category' },
+      { $group: { _id: '$category.name', revenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } }, count: { $sum: '$items.quantity' } } },
+      { $sort: { revenue: -1 } },
+      { $limit: 6 },
+    ]),
+    User.aggregate([
+      { $match: { role: 'user', createdAt: { $gte: startDate } } },
+      { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } }, count: { $sum: 1 } } },
+      { $sort: { _id: 1 } },
+    ]),
+    Order.aggregate([
+      { $match: { paymentStatus: 'paid', createdAt: { $gte: startDate } } },
+      { $group: { _id: '$paymentMethod', count: { $sum: 1 }, total: { $sum: '$totalAmount' } } },
+    ]),
+  ]);
+
+  res.render('admin/analytics/index', {
+    title: 'Analytics & Reports',
+    revenueData, orderData, topProducts, topCategories, userGrowth, paymentMethods, period,
+  });
+});
+
+// ==================== STAFF ====================
+
+
+const getAuditLogs = asyncHandler(async (req, res) => {
+  const { page = 1, action, user } = req.query;
+  const filter = {};
+  if (action) filter.action = { $regex: action, $options: 'i' };
+  if (user) filter.user = user;
+
+  const skip = (parseInt(page) - 1) * 30;
+  const [logs, total] = await Promise.all([
+    AuditLog.find(filter).populate('user', 'name email').sort({ createdAt: -1 }).skip(skip).limit(30).lean(),
+    AuditLog.countDocuments(filter),
+  ]);
+
+  res.render('admin/audit-logs', {
+    title: 'Audit Logs',
+    logs,
+    pagination: { page: parseInt(page), totalPages: Math.ceil(total / 30), total },
+    filters: { action, user },
+  });
+});
+
+// ==================== ADMIN AUTH ====================
+
+
 const getAdminLogin = asyncHandler(async (req, res) => {
   if (req.session?.adminId) return res.redirect('/admin/dashboard');
   res.render('admin/auth/login', { title: 'Admin Login' });
@@ -1056,20 +1126,8 @@ const adminLogout = asyncHandler(async (req, res) => {
   req.session.destroy(() => res.redirect('/admin/login'));
 });
 
-// ==================== HOMEPAGE LAYOUT ====================
-const SECTION_META = {
-  hero:           { label: 'Hero Banner Carousel',   desc: 'Rotating banners set under Banners — hidden automatically if none are active' },
-  usp:            { label: 'Trust / USP Bar',        desc: 'Free shipping, returns, brands, rating strip' },
-  bestSellers:    { label: 'Best Sellers',           desc: 'Top-selling products' },
-  categories:     { label: 'Shop by Category',       desc: 'Category grid' },
-  newArrivals:    { label: 'New Arrivals',           desc: 'Recently added products' },
-  featured:       { label: 'Featured Products',      desc: 'Hand-picked products (isFeatured)' },
-  reviews:        { label: 'Customer Reviews',       desc: 'Testimonial strip' },
-  brands:         { label: 'Brand Logos Strip',      desc: 'Stocked-brands showcase' },
-  referral:       { label: 'Referral Program Banner',desc: 'Only shown when the Referral Program feature flag is ON' },
-  recentlyViewed: { label: 'Recently Viewed',        desc: 'Shown only to logged-in users with browsing history' },
-  finalCta:       { label: 'Final Call-to-Action',   desc: '"Ready to Gear Up" closing strip' },
-};
+// ==================== STOCK MANAGEMENT ====================
+
 
 const getHomepageLayoutPage = asyncHandler(async (req, res) => {
   const order = await Setting.getHomepageLayout();
@@ -1095,6 +1153,8 @@ const updateHomepageLayout = asyncHandler(async (req, res) => {
 });
 
 // ==================== PACKAGE SLIP SETTINGS ====================
+
+
 const getPrintPackageSlips = asyncHandler(async (req, res) => {
   const { orderIds } = req.body;
   if (!orderIds || !Array.isArray(orderIds) || orderIds.length === 0) {
@@ -1250,6 +1310,8 @@ module.exports = {
   toggleBanner,
   reorderBanners,
   deleteBanner,
+  getAnalytics,
+  getAuditLogs,
   getAdminLogin,
   adminLogin,
   adminLogout,

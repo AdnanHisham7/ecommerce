@@ -1,0 +1,155 @@
+<% layout('layouts/admin') %>
+
+<div class="flex items-center justify-between mb-6">
+  <div><h2 class="text-xl font-bold text-white">Analytics & Reports</h2><p class="text-gray-500 text-sm">Sales & performance insights</p></div>
+  <div class="flex gap-2">
+    <% [7, 30, 90].forEach(d => { %>
+    <a href="/admin/analytics?period=<%= d %>"
+      class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all <%= period == d ? 'bg-accent-500 text-primary' : 'border border-white/10 text-gray-400 hover:border-white/20' %>">
+      <%= d %>d
+    </a>
+    <% }) %>
+  </div>
+</div>
+
+<!-- Revenue & Orders Charts -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+  <div class="card p-5">
+    <h3 class="font-bold text-white mb-4">Revenue Over Time</h3>
+    <canvas id="revenueChart" height="100"></canvas>
+  </div>
+  <div class="card p-5">
+    <h3 class="font-bold text-white mb-4">User Growth</h3>
+    <canvas id="userChart" height="100"></canvas>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+  <!-- Top Products -->
+  <div class="card">
+    <div class="p-5 border-b border-white/5"><h3 class="font-bold text-white">Top Selling Products</h3></div>
+    <div class="p-5 space-y-4">
+      <% topProducts.forEach((p, i) => { 
+        // Calculate dynamic display image matching product-grid logic
+        const vt = p.variantType || 'none';
+        let displayImg = p.images?.[0]?.url || p.thumbnail;
+        if (vt === 'color' || vt === 'color_size') {
+          const firstActiveColor = (p.colorVariants || []).find(cv => cv.isActive && cv.images?.length);
+          if (firstActiveColor) displayImg = firstActiveColor.images[0].url;
+        }
+        displayImg = displayImg || '/images/placeholder.png';
+      %>
+      <div class="flex items-center gap-4">
+        <span class="text-sm font-black text-gray-600 w-5 text-center">#<%= i+1 %></span>
+        <img src="<%= displayImg %>" class="w-10 h-10 rounded-lg object-cover bg-gray-800 flex-shrink-0" alt="<%= p.name %>"/>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium text-gray-200 truncate"><%= p.name %></p>
+          <div class="flex items-center gap-2 mt-1">
+            <div class="flex-1 bg-gray-700 rounded-full h-1.5">
+              <div class="bg-accent-500 h-1.5 rounded-full" style="width: <%= Math.round((p.salesCount / (topProducts[0]?.salesCount||1)) * 100) %>%"></div>
+            </div>
+            <span class="text-xs text-gray-400 flex-shrink-0"><%= p.salesCount || 0 %> sold</span>
+          </div>
+        </div>
+        <span class="text-sm font-bold text-white flex-shrink-0">₹<%= p.basePrice?.toLocaleString('en-IN') %></span>
+      </div>
+      <% }) %>
+    </div>
+  </div>
+
+  <!-- Revenue by Category -->
+  <div class="card p-5">
+    <h3 class="font-bold text-white mb-4">Revenue by Category</h3>
+    <canvas id="categoryChart" height="160"></canvas>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+  <!-- Orders by Status -->
+  <div class="card p-5">
+    <h3 class="font-bold text-white mb-4">Orders by Status</h3>
+    <canvas id="orderStatusChart" height="130"></canvas>
+  </div>
+
+  <!-- Payment Methods -->
+  <div class="card p-5">
+    <h3 class="font-bold text-white mb-4">Payment Methods</h3>
+    <div class="space-y-3">
+      <% const totalPayments = paymentMethods.reduce((s, p) => s + p.count, 0); %>
+      <% paymentMethods.forEach((pm, i) => {
+        const pct = totalPayments ? Math.round((pm.count / totalPayments) * 100) : 0;
+        const colors = ['#f0a500','#3b82f6','#10b981','#8b5cf6'];
+      %>
+      <div>
+        <div class="flex items-center justify-between text-sm mb-1.5">
+          <span class="text-gray-300 capitalize"><%= pm._id %></span>
+          <span class="text-gray-400"><%= pm.count %> orders (<%= pct %>%)</span>
+        </div>
+        <div class="h-2 bg-gray-700 rounded-full overflow-hidden">
+          <div class="h-2 rounded-full" style="width:<%= pct %>%; background:<%= colors[i] || '#6b7280' %>"></div>
+        </div>
+        <p class="text-xs text-gray-500 mt-0.5">₹<%= pm.total?.toLocaleString('en-IN') %> revenue</p>
+      </div>
+      <% }) %>
+    </div>
+  </div>
+</div>
+
+<script>
+const chartDefaults = {
+  responsive: true,
+  plugins: { legend: { display: false } },
+  scales: {
+    x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#6b7280', font: { size: 11 } } },
+    y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#6b7280', font: { size: 11 } } }
+  }
+};
+
+// Revenue
+const revData = <%- JSON.stringify(revenueData) %>;
+new Chart(document.getElementById('revenueChart'), {
+  type: 'line',
+  data: {
+    labels: revData.map(d => new Date(d._id).toLocaleDateString('en-IN',{day:'numeric',month:'short'})),
+    datasets: [{
+      data: revData.map(d => d.revenue),
+      borderColor: '#f0a500', backgroundColor: 'rgba(240,165,0,0.08)',
+      borderWidth: 2.5, pointBackgroundColor: '#f0a500', pointRadius: 4, tension: 0.4, fill: true
+    }]
+  },
+  options: { ...chartDefaults, scales: { ...chartDefaults.scales, y: { ...chartDefaults.scales.y, ticks: { ...chartDefaults.scales.y.ticks, callback: v => '₹'+(v/1000).toFixed(0)+'k' } } } }
+});
+
+// User Growth
+const userData = <%- JSON.stringify(userGrowth) %>;
+new Chart(document.getElementById('userChart'), {
+  type: 'bar',
+  data: {
+    labels: userData.map(d => new Date(d._id).toLocaleDateString('en-IN',{day:'numeric',month:'short'})),
+    datasets: [{ data: userData.map(d => d.count), backgroundColor: 'rgba(59,130,246,0.8)', borderRadius: 6, borderSkipped: false }]
+  },
+  options: chartDefaults
+});
+
+// Category Doughnut
+const catData = <%- JSON.stringify(topCategories) %>;
+new Chart(document.getElementById('categoryChart'), {
+  type: 'doughnut',
+  data: {
+    labels: catData.map(c => c._id),
+    datasets: [{ data: catData.map(c => c.revenue), backgroundColor: ['#f0a500','#3b82f6','#10b981','#8b5cf6','#ef4444','#06b6d4'], borderWidth: 0, hoverOffset: 4 }]
+  },
+  options: { responsive: true, cutout: '65%', plugins: { legend: { display: true, position: 'bottom', labels: { color: '#9ca3af', boxWidth: 12, padding: 12, font: { size: 11 } } } } }
+});
+
+// Order Status Bar
+const ordData = <%- JSON.stringify(orderData) %>;
+new Chart(document.getElementById('orderStatusChart'), {
+  type: 'bar',
+  data: {
+    labels: ordData.map(o => o._id?.replace(/_/g,' ')),
+    datasets: [{ data: ordData.map(o => o.count), backgroundColor: ['#f0a500','#3b82f6','#10b981','#8b5cf6','#ef4444','#6b7280','#06b6d4','#84cc16'], borderRadius: 6, borderSkipped: false }]
+  },
+  options: { ...chartDefaults, plugins: { legend: { display: false } }, indexAxis: 'y' }
+});
+</script>

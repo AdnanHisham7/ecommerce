@@ -1,0 +1,50 @@
+<% layout('layouts/admin') %>
+<div class="mb-6"><h2 class="text-xl font-bold text-white">Audit Logs</h2><p class="text-gray-500 text-sm">System activity trail</p></div>
+
+<div class="card p-4 mb-5">
+  <form method="GET" action="/admin/audit-logs" class="flex flex-wrap gap-3">
+    <input type="text" name="action" value="<%= filters.action || '' %>" placeholder="Filter by action..." class="flex-1 min-w-[180px] rounded-lg px-3 py-2 text-sm"/>
+    <button type="submit" class="bg-accent-500 text-primary px-4 py-2 rounded-lg text-sm font-bold">Filter</button>
+    <a href="/admin/audit-logs" class="px-4 py-2 rounded-lg text-sm text-gray-400 border border-white/10">Clear</a>
+  </form>
+</div>
+
+<div class="card overflow-hidden">
+  <table class="w-full text-sm">
+    <thead><tr class="text-xs text-gray-500 uppercase tracking-wider border-b border-white/5">
+      <th class="text-left px-5 py-3">User</th>
+      <th class="text-left px-5 py-3">Action</th>
+      <th class="text-left px-5 py-3">Resource</th>
+      <th class="text-left px-5 py-3">IP</th>
+      <th class="text-left px-5 py-3">Status</th>
+      <th class="text-left px-5 py-3">Time</th>
+    </tr></thead>
+    <tbody class="divide-y divide-white/5">
+      <% logs.forEach(log => { %>
+      <tr class="hover:bg-white/5 transition-colors">
+        <td class="px-5 py-3">
+          <p class="font-medium text-gray-300 text-xs"><%= log.user?.name || 'System' %></p>
+          <p class="text-gray-600 text-xs"><%= log.user?.email || '' %></p>
+        </td>
+        <td class="px-5 py-3"><span class="font-mono text-xs text-accent-400 bg-accent-500/10 px-2 py-0.5 rounded"><%= log.action %></span></td>
+        <td class="px-5 py-3 text-gray-400 text-xs"><%= log.resource || '—' %></td>
+        <td class="px-5 py-3 text-gray-500 text-xs font-mono"><%= log.ip || '—' %></td>
+        <td class="px-5 py-3"><span class="badge <%= log.status === 'success' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400' %>"><%= log.status %></span></td>
+        <td class="px-5 py-3 text-gray-500 text-xs whitespace-nowrap"><%= new Date(log.createdAt).toLocaleString('en-IN',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) %></td>
+      </tr>
+      <% }) %>
+      <% if (!logs.length) { %><tr><td colspan="6" class="px-5 py-12 text-center text-gray-500">No logs found</td></tr><% } %>
+    </tbody>
+  </table>
+
+  <% if (pagination.totalPages > 1) { %>
+  <div class="flex items-center justify-between px-5 py-4 border-t border-white/5">
+    <p class="text-xs text-gray-500">Page <%= pagination.page %> of <%= pagination.totalPages %></p>
+    <div class="flex gap-2">
+      <% for(let p=Math.max(1,pagination.page-2); p<=Math.min(pagination.totalPages,pagination.page+2); p++) { %>
+      <a href="?<%= new URLSearchParams({...filters, page:p}).toString() %>" class="w-8 h-8 flex items-center justify-center rounded-lg text-xs font-bold transition-all <%= p===pagination.page ? 'bg-accent-500 text-primary' : 'text-gray-400 hover:bg-white/10' %>"><%= p %></a>
+      <% } %>
+    </div>
+  </div>
+  <% } %>
+</div>
