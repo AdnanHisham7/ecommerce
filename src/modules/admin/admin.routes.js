@@ -21,9 +21,6 @@ router.get('/dashboard', noCache, ctrl.getDashboard);
 // ---- Analytics ----
 router.get('/analytics', noCache, requirePermission('view_analytics'), ctrl.getAnalytics);
 
-// ---- Audit Logs ----
-router.get('/audit-logs', noCache, requirePermission('view_analytics'), ctrl.getAuditLogs);
-
 // ---- Products ----
 router.get('/products', noCache, requirePermission('manage_products'), ctrl.getProducts);
 router.get('/products/add', noCache, requirePermission('manage_products'), ctrl.getAddProduct);
@@ -90,11 +87,34 @@ router.post('/banners/add', bannerUpload.single('image'), noCache, requirePermis
 router.post('/banners/:id/edit', bannerUpload.single('image'), noCache, requirePermission('manage_banners'), ctrl.updateBanner);
 router.post('/banners/:id/toggle', noCache, requirePermission('manage_banners'), ctrl.toggleBanner);
 router.post('/banners/:id/delete', noCache, requirePermission('manage_banners'), ctrl.deleteBanner);
-router.post('/banners/reorder', noCache, requirePermission('manage_banners'), ctrl.reorderBanners);
+router.post('/banners/reorder', noCache, requirePermission('manage_banners'), ctrl.reorderBanners);   // new
+
+// ---- Staff (admin only) ----
+router.get('/staff', noCache, requirePermission('manage_staff'), ctrl.getStaff);
+router.post('/staff/add', noCache, requirePermission('manage_staff'), ctrl.addStaff);
+router.post('/staff/:id/permissions', noCache, requirePermission('manage_staff'), ctrl.updateStaffPermissions);
+router.post('/staff/:id/info', noCache, requirePermission('manage_staff'), ctrl.updateStaffInfo);
+router.post('/staff/:id/delete', noCache, requirePermission('manage_staff'), ctrl.deleteStaff);
+
+// ---- Audit Logs ----
+router.get('/audit-logs', noCache, requirePermission('view_analytics'), ctrl.getAuditLogs);
+
+// ---- Stock ----
+router.get('/stock-alerts', noCache, requirePermission('manage_products'), ctrl.getStockAlerts);
+router.post('/products/:id/stock', noCache, requirePermission('manage_products'), ctrl.updateStock);
+
+// ---- Feature Flags ----
+router.get('/feature-flags', noCache, requirePermission('manage_settings'), ctrl.getFeatureFlags);
+router.post('/feature-flags', noCache, requirePermission('manage_settings'), ctrl.updateFeatureFlag);
 
 // ---- Homepage Layout ----
 router.get('/homepage-layout', noCache, requirePermission('manage_settings'), ctrl.getHomepageLayoutPage);
 router.get('/homepage-layout/data', noCache, requirePermission('manage_settings'), ctrl.getHomepageLayoutSettings);
 router.post('/homepage-layout', noCache, requirePermission('manage_settings'), ctrl.updateHomepageLayout);
+
+// ---- Settings ----
+router.get('/settings/package-slip-address', noCache, requirePermission('manage_settings'), ctrl.getPackageSlipAddress);
+router.post('/settings/package-slip-address', noCache, requirePermission('manage_settings'), ctrl.updatePackageSlipAddress);
+router.post('/settings/commerce', noCache, requirePermission('manage_settings'), ctrl.updateCommerceSettings);
 
 module.exports = router;

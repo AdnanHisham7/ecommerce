@@ -16,7 +16,6 @@ const moment = require('moment');
 const { amountToIndianWords } = require('../../utils/numberToWords');
 
 // ==================== DASHBOARD ====================
-
 const getDashboard = asyncHandler(async (req, res) => {
   const today = moment().startOf('day').toDate();
   const thisMonth = moment().startOf('month').toDate();
@@ -73,8 +72,6 @@ const getDashboard = asyncHandler(async (req, res) => {
 });
 
 // ==================== PRODUCTS ====================
-
-
 const getProducts = asyncHandler(async (req, res) => {
   const { page = 1, search, category, status, stock } = req.query;
   const filter = {};
@@ -101,12 +98,10 @@ const getProducts = asyncHandler(async (req, res) => {
   });
 });
 
-
 const getAddProduct = asyncHandler(async (req, res) => {
   const categories = await Category.find({ isActive: true }).lean();
   res.render('admin/products/add', { title: 'Add Product', categories });
 });
-
 
 const addProduct = asyncHandler(async (req, res) => {
   const {
@@ -163,7 +158,6 @@ const addProduct = asyncHandler(async (req, res) => {
   res.redirect(`/admin/products/${product._id}/edit`);
 });
 
-
 const getEditProduct = asyncHandler(async (req, res) => {
   const [product, categories] = await Promise.all([
     Product.findById(req.params.id).lean(),
@@ -172,7 +166,6 @@ const getEditProduct = asyncHandler(async (req, res) => {
   if (!product) throw ApiError.notFound('Product not found');
   res.render('admin/products/edit', { title: 'Edit Product', product, categories });
 });
-
 
 const updateProduct = asyncHandler(async (req, res) => {
   const product = await Product.findById(req.params.id);
@@ -226,7 +219,6 @@ const updateProduct = asyncHandler(async (req, res) => {
   res.redirect('/admin/products');
 });
 
-
 const deleteProduct = asyncHandler(async (req, res) => {
   const product = await Product.findById(req.params.id);
   if (!product) throw ApiError.notFound('Product not found');
@@ -234,7 +226,6 @@ const deleteProduct = asyncHandler(async (req, res) => {
   req.flash('success', 'Product deactivated');
   res.redirect('/admin/products');
 });
-
 
 const deleteProductImage = asyncHandler(async (req, res) => {
   const { productId, publicId } = req.body;
@@ -247,7 +238,6 @@ const deleteProductImage = asyncHandler(async (req, res) => {
   await product.save();
   res.json({ success: true });
 });
-
 
 const reorderProductImages = asyncHandler(async (req, res) => {
   const { orderedPublicIds } = req.body; // array of publicIds in new order
@@ -270,8 +260,6 @@ const reorderProductImages = asyncHandler(async (req, res) => {
  * PUT /admin/products/:id/variant-type
  * Body: { variantType: "none" | "color" | "size" | "color_size" }
  */
-
-
 const updateVariantType = asyncHandler(async (req, res) => {
   const { variantType } = req.body;
   const allowed = ['none', 'color', 'size', 'color_size'];
@@ -286,7 +274,6 @@ const updateVariantType = asyncHandler(async (req, res) => {
 });
 
 // ==================== COLOR VARIANTS ====================
-
 
 const addColorVariant = asyncHandler(async (req, res) => {
   const { color, colorHex } = req.body;
@@ -306,7 +293,6 @@ const addColorVariant = asyncHandler(async (req, res) => {
   const newColor = product.colorVariants[product.colorVariants.length - 1];
   res.json({ success: true, message: 'Color added', colorVariant: newColor });
 });
-
 
 const updateColorVariant = asyncHandler(async (req, res) => {
   const product = await Product.findById(req.params.id);
@@ -329,7 +315,6 @@ const updateColorVariant = asyncHandler(async (req, res) => {
   res.json({ success: true, message: 'Color variant updated', colorVariant });
 });
 
-
 const deleteColorVariantImage = asyncHandler(async (req, res) => {
   const { colorId, publicId } = req.body;
   const product = await Product.findById(req.params.id);
@@ -343,7 +328,6 @@ const deleteColorVariantImage = asyncHandler(async (req, res) => {
   await product.save();
   res.json({ success: true });
 });
-
 
 const reorderColorImages = asyncHandler(async (req, res) => {
   const { colorId, orderedPublicIds } = req.body;
@@ -360,7 +344,6 @@ const reorderColorImages = asyncHandler(async (req, res) => {
   await product.save();
   res.json({ success: true });
 });
-
 
 const deleteColorVariant = asyncHandler(async (req, res) => {
   const product = await Product.findById(req.params.id);
@@ -386,7 +369,6 @@ const deleteColorVariant = asyncHandler(async (req, res) => {
 
 // ==================== SIZE VARIANTS ====================
 
-
 const addSizeVariant = asyncHandler(async (req, res) => {
   const { size } = req.body;
   const product = await Product.findById(req.params.id);
@@ -405,7 +387,6 @@ const addSizeVariant = asyncHandler(async (req, res) => {
   res.json({ success: true, message: 'Size added', sizeVariant: newSize });
 });
 
-
 const updateSizeVariant = asyncHandler(async (req, res) => {
   const product = await Product.findById(req.params.id);
   if (!product) throw ApiError.notFound('Product not found');
@@ -420,7 +401,6 @@ const updateSizeVariant = asyncHandler(async (req, res) => {
   await product.save();
   res.json({ success: true, message: 'Size variant updated', sizeVariant });
 });
-
 
 const deleteSizeVariant = asyncHandler(async (req, res) => {
   const product = await Product.findById(req.params.id);
@@ -451,8 +431,6 @@ const deleteSizeVariant = asyncHandler(async (req, res) => {
  *  - variantType="size"        → sizeId required, colorId must be absent/null
  *  - variantType="color_size"  → both colorId and sizeId required
  */
-
-
 const upsertVariant = asyncHandler(async (req, res) => {
   const { colorId, sizeId, sku, price, compareAtPrice, stock } = req.body;
   const product = await Product.findById(req.params.id);
@@ -502,8 +480,6 @@ const upsertVariant = asyncHandler(async (req, res) => {
  * PUT /admin/products/:id/variants/:variantId
  * Update price, compareAtPrice, stock, sku, isActive of an existing SKU variant.
  */
-
-
 const updateVariant = asyncHandler(async (req, res) => {
   const { price, compareAtPrice, stock, sku, isActive } = req.body;
   const product = await Product.findById(req.params.id);
@@ -525,8 +501,6 @@ const updateVariant = asyncHandler(async (req, res) => {
 /**
  * DELETE /admin/products/:id/variants/:variantId
  */
-
-
 const deleteVariant = asyncHandler(async (req, res) => {
   const product = await Product.findById(req.params.id);
   if (!product) throw ApiError.notFound('Product not found');
@@ -536,13 +510,10 @@ const deleteVariant = asyncHandler(async (req, res) => {
 });
 
 // ==================== CATEGORIES ====================
-
-
 const getCategories = asyncHandler(async (req, res) => {
   const categories = await Category.find().populate('parent', 'name').sort('sortOrder').lean();
   res.render('admin/categories/index', { title: 'Categories', categories });
 });
-
 
 const addCategory = asyncHandler(async (req, res) => {
   const { name, description, parent, isFeatured, sortOrder, seoTitle, seoDescription } = req.body;
@@ -555,7 +526,6 @@ const addCategory = asyncHandler(async (req, res) => {
   res.redirect('/admin/categories');
 });
 
-
 const updateCategory = asyncHandler(async (req, res) => {
   const { name, description, parent, isFeatured, sortOrder, isActive } = req.body;
   const updates = { name, description, parent: parent || null, isFeatured: isFeatured === 'true', sortOrder: parseInt(sortOrder) || 0, isActive: isActive === 'true' };
@@ -566,7 +536,6 @@ const updateCategory = asyncHandler(async (req, res) => {
   res.redirect('/admin/categories');
 });
 
-
 const deleteCategory = asyncHandler(async (req, res) => {
   await Category.findByIdAndUpdate(req.params.id, { isActive: false });
   req.flash('success', 'Category deactivated');
@@ -574,8 +543,6 @@ const deleteCategory = asyncHandler(async (req, res) => {
 });
 
 // ==================== USERS ====================
-
-
 const getUsers = asyncHandler(async (req, res) => {
   const { page = 1, search, role, status } = req.query;
   const filter = {};
@@ -598,7 +565,6 @@ const getUsers = asyncHandler(async (req, res) => {
   });
 });
 
-
 const getUserDetail = asyncHandler(async (req, res) => {
   const [user, orders] = await Promise.all([
     User.findById(req.params.id).lean(),
@@ -608,7 +574,6 @@ const getUserDetail = asyncHandler(async (req, res) => {
   const totalSpent = orders.filter((o) => o.paymentStatus === 'paid').reduce((s, o) => s + o.totalAmount, 0);
   res.render('admin/users/detail', { title: `User: ${user.name}`, user, orders, totalSpent });
 });
-
 
 const toggleUserBlock = asyncHandler(async (req, res) => {
   const { reason } = req.body;
@@ -634,8 +599,6 @@ const toggleUserBlock = asyncHandler(async (req, res) => {
 });
 
 // ==================== ORDERS ====================
-
-
 const getOrders = asyncHandler(async (req, res) => {
   const { page = 1, status, paymentStatus, search, from, to } = req.query;
   const filter = {};
@@ -662,7 +625,6 @@ const getOrders = asyncHandler(async (req, res) => {
   });
 });
 
-
 const getOrderDetail = asyncHandler(async (req, res) => {
   const order = await Order.findById(req.params.id)
     .populate('user', 'name email phone')
@@ -671,7 +633,6 @@ const getOrderDetail = asyncHandler(async (req, res) => {
   if (!order) throw ApiError.notFound('Order not found');
   res.render('admin/orders/detail', { title: `Order #${order.orderNumber}`, order });
 });
-
 
 const updateOrderStatus = asyncHandler(async (req, res) => {
   const { status, trackingNumber, message, trackingLink } = req.body;
@@ -747,8 +708,6 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
 });
 
 // ==================== COUPONS ====================
-
-
 const getCoupons = asyncHandler(async (req, res) => {
   const [coupons, categories, brands] = await Promise.all([
     Coupon.find().sort({ createdAt: -1 }).lean(),
@@ -764,7 +723,6 @@ const getCoupons = asyncHandler(async (req, res) => {
     brands: brands.filter(Boolean).sort(),
   });
 });
-
 
 const addCoupon = asyncHandler(async (req, res) => {
   const {
@@ -813,7 +771,6 @@ const addCoupon = asyncHandler(async (req, res) => {
   res.redirect('/admin/coupons');
 });
 
-
 const toggleCoupon = asyncHandler(async (req, res) => {
   const coupon = await Coupon.findById(req.params.id);
   if (!coupon) throw ApiError.notFound('Coupon not found');
@@ -822,7 +779,6 @@ const toggleCoupon = asyncHandler(async (req, res) => {
   res.json({ success: true, isActive: coupon.isActive });
 });
 
-
 const deleteCoupon = asyncHandler(async (req, res) => {
   await Coupon.findByIdAndDelete(req.params.id);
   req.flash('success', 'Coupon deleted');
@@ -830,8 +786,6 @@ const deleteCoupon = asyncHandler(async (req, res) => {
 });
 
 // ==================== OFFERS ====================
-
-
 const getOffers = asyncHandler(async (req, res) => {
   const [offers, categories, products] = await Promise.all([
     Offer.find().populate('products', 'name').populate('categories', 'name').sort({ createdAt: -1 }).lean(),
@@ -840,7 +794,6 @@ const getOffers = asyncHandler(async (req, res) => {
   ]);
   res.render('admin/offers/index', { title: 'Offers', offers, categories, products });
 });
-
 
 const addOffer = asyncHandler(async (req, res) => {
   const {
@@ -897,7 +850,6 @@ const applyOffer = async (offer) => {
   }
 };
 
-
 const toggleOffer = asyncHandler(async (req, res) => {
   const offer = await Offer.findById(req.params.id);
   if (!offer) throw ApiError.notFound('Offer not found');
@@ -913,7 +865,6 @@ const toggleOffer = asyncHandler(async (req, res) => {
   res.json({ success: true, isActive: offer.isActive });
 });
 
-
 const deleteOffer = asyncHandler(async (req, res) => {
   const offer = await Offer.findByIdAndDelete(req.params.id);
   if (offer) {
@@ -924,13 +875,10 @@ const deleteOffer = asyncHandler(async (req, res) => {
 });
 
 // ==================== BANNERS ====================
-
-
 const getBanners = asyncHandler(async (req, res) => {
   const banners = await Banner.find().sort('sortOrder').lean();
   res.render('admin/banners/index', { title: 'Banners', banners });
 });
-
 
 const addBanner = asyncHandler(async (req, res) => {
   const { title, subtitle, link, position, ctaText, startDate, endDate } = req.body;
@@ -950,7 +898,6 @@ const addBanner = asyncHandler(async (req, res) => {
   req.flash('success', 'Banner added');
   res.redirect('/admin/banners');
 });
-
 
 const updateBanner = asyncHandler(async (req, res) => {
   const banner = await Banner.findById(req.params.id);
@@ -985,7 +932,6 @@ const updateBanner = asyncHandler(async (req, res) => {
   res.redirect('/admin/banners');
 });
 
-
 const toggleBanner = asyncHandler(async (req, res) => {
   const banner = await Banner.findById(req.params.id);
   if (!banner) throw ApiError.notFound('Banner not found');
@@ -993,7 +939,6 @@ const toggleBanner = asyncHandler(async (req, res) => {
   await banner.save();
   res.json({ success: true, isActive: banner.isActive });
 });
-
 
 const reorderBanners = asyncHandler(async (req, res) => {
   const { order } = req.body; // Array of banner IDs in their new sequential order
@@ -1012,7 +957,6 @@ const reorderBanners = asyncHandler(async (req, res) => {
   res.json({ success: true, message: 'Banners reordered successfully' });
 });
 
-
 const deleteBanner = asyncHandler(async (req, res) => {
   const banner = await Banner.findByIdAndDelete(req.params.id);
   if (banner?.imagePublicId) await deleteImage(banner.imagePublicId).catch(() => {});
@@ -1021,8 +965,6 @@ const deleteBanner = asyncHandler(async (req, res) => {
 });
 
 // ==================== ANALYTICS ====================
-
-
 const getAnalytics = asyncHandler(async (req, res) => {
   const { period = '30' } = req.query;
   const days = parseInt(period);
@@ -1068,8 +1010,87 @@ const getAnalytics = asyncHandler(async (req, res) => {
 });
 
 // ==================== STAFF ====================
+const getStaff = asyncHandler(async (req, res) => {
+  const staff = await User.find({ role: 'staff' }).lean();
+  res.render('admin/staff/index', { title: 'Staff Accounts', staff });
+});
 
+const addStaff = asyncHandler(async (req, res) => {
+  const { name, email, password, permissions } = req.body;
+  const existing = await User.findOne({ email: email?.toLowerCase() });
+  if (existing) {
+    return res.status(409).json({ success: false, message: 'Email already exists' });
+  }
 
+  const staff = await User.create({
+    name,
+    email: email.toLowerCase(),
+    password,
+    role: 'staff',
+    isEmailVerified: true,
+    permissions: Array.isArray(permissions) ? permissions : [permissions].filter(Boolean),
+    managedBy: req.user._id,
+  });
+
+  await AuditLog.create({
+    user: req.user._id,
+    action: 'staff_created',
+    resource: 'User',
+    resourceId: staff._id,
+    ip: req.ip,
+  }).catch(() => {});
+
+  res.json({ success: true, message: 'Staff account created', staffId: staff._id });
+});
+
+const updateStaffPermissions = asyncHandler(async (req, res) => {
+  const { permissions } = req.body;
+  const staff = await User.findById(req.params.id);
+  if (!staff || staff.role !== 'staff') throw ApiError.notFound('Staff not found');
+
+  staff.permissions = Array.isArray(permissions) ? permissions : [permissions].filter(Boolean);
+  await staff.save();
+
+  await AuditLog.create({
+    user: req.user._id,
+    action: 'staff_permissions_updated',
+    resource: 'User',
+    resourceId: staff._id,
+    ip: req.ip,
+    details: { permissions: staff.permissions },
+  }).catch(() => {});
+
+  res.json({ success: true, message: 'Permissions updated', permissions: staff.permissions });
+});
+
+const updateStaffInfo = asyncHandler(async (req, res) => {
+  const { name, email, password } = req.body;
+  const staff = await User.findById(req.params.id);
+  if (!staff || staff.role !== 'staff') throw ApiError.notFound('Staff not found');
+
+  if (email && email !== staff.email) {
+    const conflict = await User.findOne({ email: email.toLowerCase() });
+    if (conflict) throw ApiError.conflict('Email already in use');
+    staff.email = email.toLowerCase();
+  }
+  if (name) staff.name = name;
+  if (password && password.length >= 8) staff.password = password;
+
+  await staff.save();
+  await AuditLog.create({ user: req.user._id, action: 'staff_info_updated', resource: 'User', resourceId: staff._id, ip: req.ip }).catch(() => {});
+
+  res.json({ success: true, message: 'Staff info updated' });
+});
+
+const deleteStaff = asyncHandler(async (req, res) => {
+  const staff = await User.findById(req.params.id);
+  if (!staff || staff.role !== 'staff') throw ApiError.notFound('Staff not found');
+  await User.findByIdAndDelete(req.params.id);
+  await AuditLog.create({ user: req.user._id, action: 'staff_deleted', resource: 'User', resourceId: staff._id, ip: req.ip }).catch(() => {});
+  res.json({ success: true, message: 'Staff account deleted' });
+});
+
+// ==================== AUDIT LOGS ====================
 const getAuditLogs = asyncHandler(async (req, res) => {
   const { page = 1, action, user } = req.query;
   const filter = {};
@@ -1091,13 +1112,10 @@ const getAuditLogs = asyncHandler(async (req, res) => {
 });
 
 // ==================== ADMIN AUTH ====================
-
-
 const getAdminLogin = asyncHandler(async (req, res) => {
   if (req.session?.adminId) return res.redirect('/admin/dashboard');
   res.render('admin/auth/login', { title: 'Admin Login' });
 });
-
 
 const adminLogin = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
@@ -1120,26 +1138,147 @@ const adminLogin = asyncHandler(async (req, res) => {
   res.redirect('/admin/dashboard');
 });
 
-
 const adminLogout = asyncHandler(async (req, res) => {
   await AuditLog.create({ user: req.user?._id, action: 'admin_logout', ip: req.ip }).catch(() => {});
   req.session.destroy(() => res.redirect('/admin/login'));
 });
 
 // ==================== STOCK MANAGEMENT ====================
+const getStockAlerts = asyncHandler(async (req, res) => {
+  // Fetch products that are themselves low/out of stock (variantType = 'none')
+  // AND products with variants that have low/out of stock SKUs
+  const allVariantProducts = await Product.find({
+    isActive: true,
+    variantType: { $ne: 'none' },
+  }).populate('category', 'name').lean();
 
+  // Base-level low stock (no variants)
+  const baseLowStock = await Product.find({
+    stockStatus: { $in: ['low_stock', 'out_of_stock'] },
+    isActive: true,
+    variantType: 'none',
+  })
+    .populate('category', 'name')
+    .sort({ stockStatus: 1, stock: 1 })
+    .lean();
+
+  // Build variant-level alerts: each low/out-of-stock SKU variant becomes a row
+  const variantAlerts = [];
+  for (const p of allVariantProducts) {
+    const lowVariants = (p.variants || []).filter(v => v.isActive && v.stock <= (p.lowStockThreshold || 5));
+    for (const v of lowVariants) {
+      const colorVariant = v.colorId ? p.colorVariants?.find(c => c._id.toString() === v.colorId.toString()) : null;
+      const sizeVariant  = v.sizeId  ? p.sizeVariants?.find(s => s._id.toString()  === v.sizeId.toString())  : null;
+
+      // Resolve thumbnail for this variant
+      let thumb = colorVariant?.images?.[0]?.url || p.images?.[0]?.url || p.thumbnail || null;
+
+      variantAlerts.push({
+        _id:       p._id,
+        name:      p.name,
+        brand:     p.brand,
+        category:  p.category,
+        variantId: v._id,
+        variantLabel: [colorVariant?.color, sizeVariant?.size].filter(Boolean).join(' / ') || 'Default',
+        variantSku: v.sku || null,
+        stock:     v.stock,
+        stockStatus: v.stock <= 0 ? 'out_of_stock' : 'low_stock',
+        thumb,
+      });
+    }
+  }
+
+  res.render('admin/stock-alerts', {
+    title: 'Stock Alerts',
+    products: baseLowStock,
+    variantAlerts,
+  });
+});
+
+const updateStock = asyncHandler(async (req, res) => {
+  const { stock, variantId } = req.body;
+  const product = await Product.findById(req.params.id);
+  if (!product) throw ApiError.notFound('Product not found');
+
+  if (variantId) {
+    const variant = product.variants.id(variantId);
+    if (!variant) throw ApiError.notFound('Variant not found');
+    variant.stock = parseInt(stock);
+  } else {
+    product.stock = parseInt(stock);
+  }
+  await product.save();
+  res.json({ success: true, message: 'Stock updated' });
+});
+
+// ==================== FEATURE FLAGS ====================
+// Flags are now persisted to MongoDB via Setting.getFeatureFlags / Setting.setFeatureFlag
+// so they survive server restarts. guestCheckout removed per requirements.
+
+const getFeatureFlags = asyncHandler(async (req, res) => {
+  const [flags, commerce] = await Promise.all([
+    Setting.getFeatureFlags(),
+    Setting.getCommerceSettings(),
+  ]);
+  res.render('admin/feature-flags', { title: 'Feature Flags', flags, commerce });
+});
+
+const updateFeatureFlag = asyncHandler(async (req, res) => {
+  const { flag, value } = req.body;
+  const boolVal = value === 'true';
+  try {
+    const updatedFlags = await Setting.setFeatureFlag(flag, boolVal, req.user._id);
+    await AuditLog.create({ user: req.user._id, action: 'feature_flag_update', details: { flag, value: boolVal }, ip: req.ip });
+    res.json({ success: true, flags: updatedFlags });
+  } catch (err) {
+    throw ApiError.badRequest(err.message || 'Unknown feature flag');
+  }
+});
+
+// ==================== COMMERCE SETTINGS (shipping + signup cashback amount) ====================
+const updateCommerceSettings = asyncHandler(async (req, res) => {
+  const { freeShippingThreshold, shippingCost, signupCashbackAmount } = req.body;
+  try {
+    const updated = await Setting.updateCommerceSettings(
+      { freeShippingThreshold, shippingCost, signupCashbackAmount },
+      req.user._id,
+    );
+    await AuditLog.create({
+      user: req.user._id,
+      action: 'commerce_settings_update',
+      details: updated,
+      ip: req.ip,
+    });
+    res.json({ success: true, commerce: updated });
+  } catch (err) {
+    throw ApiError.badRequest(err.message || 'Invalid commerce settings');
+  }
+});
+
+// ==================== HOMEPAGE LAYOUT ====================
+const SECTION_META = {
+  hero:           { label: 'Hero Banner Carousel',   desc: 'Rotating banners set under Banners — hidden automatically if none are active' },
+  usp:            { label: 'Trust / USP Bar',        desc: 'Free shipping, returns, brands, rating strip' },
+  bestSellers:    { label: 'Best Sellers',           desc: 'Top-selling products' },
+  categories:     { label: 'Shop by Category',       desc: 'Category grid' },
+  newArrivals:    { label: 'New Arrivals',           desc: 'Recently added products' },
+  featured:       { label: 'Featured Products',      desc: 'Hand-picked products (isFeatured)' },
+  reviews:        { label: 'Customer Reviews',       desc: 'Testimonial strip' },
+  brands:         { label: 'Brand Logos Strip',      desc: 'Stocked-brands showcase' },
+  referral:       { label: 'Referral Program Banner',desc: 'Only shown when the Referral Program feature flag is ON' },
+  recentlyViewed: { label: 'Recently Viewed',        desc: 'Shown only to logged-in users with browsing history' },
+  finalCta:       { label: 'Final Call-to-Action',   desc: '"Ready to Gear Up" closing strip' },
+};
 
 const getHomepageLayoutPage = asyncHandler(async (req, res) => {
   const order = await Setting.getHomepageLayout();
   res.render('admin/homepage-layout', { title: 'Homepage Layout', order, sectionMeta: SECTION_META });
 });
 
-
 const getHomepageLayoutSettings = asyncHandler(async (req, res) => {
   const order = await Setting.getHomepageLayout();
   res.json({ success: true, order });
 });
-
 
 const updateHomepageLayout = asyncHandler(async (req, res) => {
   const { order } = req.body;
@@ -1153,8 +1292,42 @@ const updateHomepageLayout = asyncHandler(async (req, res) => {
 });
 
 // ==================== PACKAGE SLIP SETTINGS ====================
+const getPackageSlipAddress = asyncHandler(async (req, res) => {
+  let setting = await Setting.findOne({ key: 'packageSlipFromAddress' });
+  if (!setting) {
+    const defaultAddress = {
+      company: 'FootballStore', name: 'Admin', addressLine1: '123 Main Street',
+      addressLine2: '', city: 'Mumbai', state: 'Maharashtra', pincode: '400001',
+      country: 'India', phone: '+91 9876543210', email: 'support@footballstore.com',
+      customerId: '',
+    };
+    return res.json({ success: true, address: defaultAddress });
+  }
+  res.json({ success: true, address: setting.value });
+});
 
+const updatePackageSlipAddress = asyncHandler(async (req, res) => {
+  const { address } = req.body;
+  if (!address) throw ApiError.badRequest('Address data required');
 
+  if (address.customerId !== undefined && address.customerId !== '' && !/^\d+$/.test(String(address.customerId).trim())) {
+    throw ApiError.badRequest('Customer ID must contain digits only');
+  }
+
+  let setting = await Setting.findOne({ key: 'packageSlipFromAddress' });
+  if (!setting) {
+    setting = new Setting({ key: 'packageSlipFromAddress', value: address, type: 'object' });
+  } else {
+    setting.value = address;
+  }
+  setting.updatedBy = req.user._id;
+  await setting.save();
+
+  await AuditLog.create({ user: req.user._id, action: 'update_package_slip_address', resource: 'Setting', resourceId: setting._id, ip: req.ip });
+  res.json({ success: true, address: setting.value });
+});
+
+// ==================== PRINT PACKAGE SLIPS ====================
 const getPrintPackageSlips = asyncHandler(async (req, res) => {
   const { orderIds } = req.body;
   if (!orderIds || !Array.isArray(orderIds) || orderIds.length === 0) {
@@ -1194,8 +1367,6 @@ const getPrintPackageSlips = asyncHandler(async (req, res) => {
 
 
 // ==================== MARK COD ORDER AS PAID ====================
-
-
 const markCodOrderPaid = asyncHandler(async (req, res) => {
   const order = await Order.findById(req.params.id);
   if (!order) throw ApiError.notFound('Order not found');
@@ -1263,61 +1434,28 @@ const markCodOrderPaid = asyncHandler(async (req, res) => {
   res.json({ success: true, message: `Order marked as paid — ₹${effectiveTotal.toFixed(2)} collected` });
 });
 
-
 module.exports = {
   getDashboard,
-  getProducts,
-  getAddProduct,
-  addProduct,
-  getEditProduct,
-  updateProduct,
-  deleteProduct,
-  deleteProductImage,
-  reorderProductImages,
-  updateVariantType,
-  addColorVariant,
-  updateColorVariant,
-  deleteColorVariantImage,
-  reorderColorImages,
-  deleteColorVariant,
-  addSizeVariant,
-  updateSizeVariant,
-  deleteSizeVariant,
-  upsertVariant,
-  updateVariant,
-  deleteVariant,
-  getCategories,
-  addCategory,
-  updateCategory,
-  deleteCategory,
-  getUsers,
-  getUserDetail,
-  toggleUserBlock,
-  getOrders,
-  getOrderDetail,
-  updateOrderStatus,
-  getCoupons,
-  addCoupon,
-  toggleCoupon,
-  deleteCoupon,
-  getOffers,
-  addOffer,
-  toggleOffer,
-  deleteOffer,
-  getBanners,
-  addBanner,
-  updateBanner,
-  toggleBanner,
-  reorderBanners,
-  deleteBanner,
-  getAnalytics,
-  getAuditLogs,
-  getAdminLogin,
-  adminLogin,
-  adminLogout,
-  getHomepageLayoutPage,
-  getHomepageLayoutSettings,
-  updateHomepageLayout,
-  getPrintPackageSlips,
   markCodOrderPaid,
+  getProducts, getAddProduct, addProduct, getEditProduct, updateProduct, deleteProduct, deleteProductImage, reorderProductImages,
+  updateVariantType,
+  addColorVariant, updateColorVariant, deleteColorVariant, deleteColorVariantImage, reorderColorImages,
+  addSizeVariant, updateSizeVariant, deleteSizeVariant,
+  upsertVariant, updateVariant, deleteVariant,
+  getCategories, addCategory, updateCategory, deleteCategory,
+  getUsers, getUserDetail, toggleUserBlock,
+  getOrders, getOrderDetail, updateOrderStatus,
+  getCoupons, addCoupon, toggleCoupon, deleteCoupon,
+  getOffers, addOffer, toggleOffer, deleteOffer,
+  getBanners, addBanner, updateBanner, toggleBanner, reorderBanners, deleteBanner,
+  getAnalytics,
+  getStaff, addStaff, updateStaffPermissions, updateStaffInfo, deleteStaff,
+  getAuditLogs,
+  getAdminLogin, adminLogin, adminLogout,
+  getStockAlerts, updateStock,
+  getFeatureFlags, updateFeatureFlag,
+  updateCommerceSettings,
+  getHomepageLayoutPage, getHomepageLayoutSettings, updateHomepageLayout,
+  getPackageSlipAddress, updatePackageSlipAddress,
+  getPrintPackageSlips,
 };

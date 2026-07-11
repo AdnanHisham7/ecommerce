@@ -1,0 +1,139 @@
+<% layout('layouts/admin') %>
+<div class="mb-6">
+  <h2 class="text-xl font-bold text-white">Feature Flags</h2>
+  <p class="text-gray-500 text-sm mt-1">Toggle features on or off without deploying code — changes persist across restarts</p>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+  <% const flagDescriptions = {
+    maintenanceMode:  { label: 'Maintenance Mode',    desc: 'Show maintenance page to all non-admin users', icon: 'fa-wrench',        danger: true  },
+    newRegistrations: { label: 'New Registrations',   desc: 'Allow new users to register accounts',         icon: 'fa-user-plus',     danger: false },
+    referralProgram:  { label: 'Referral Program',    desc: 'Show referral section; enable referral rewards',icon: 'fa-gift',          danger: false },
+    reviewSystem:     { label: 'Review System',       desc: 'Allow users to submit product reviews',         icon: 'fa-star',          danger: false },
+    pushNotifications:{ label: 'Push Notifications',  desc: 'Enable browser push notification prompts',      icon: 'fa-bell',          danger: false },
+    signupCashbackEnabled: { label: 'Signup Cashback', desc: 'Credit new users with wallet cashback on registration (amount set below)', icon: 'fa-wallet', danger: false },
+  };
+  Object.entries(flags).forEach(([key, value]) => {
+    const meta = flagDescriptions[key];
+    if (!meta) return; // skip unknown / removed flags
+  %>
+  <div class="card p-5 flex items-center justify-between gap-4">
+    <div class="flex items-center gap-4">
+      <div class="w-10 h-10 rounded-xl <%= meta.danger ? 'bg-red-500/20' : 'bg-accent-500/20' %> flex items-center justify-center flex-shrink-0">
+        <i class="fa-solid <%= meta.icon %> <%= meta.danger ? 'text-red-400' : 'text-accent-400' %> text-sm"></i>
+      </div>
+      <div>
+        <p class="font-semibold text-gray-200"><%= meta.label %></p>
+        <p class="text-xs text-gray-500"><%= meta.desc %></p>
+      </div>
+    </div>
+    <button onclick="toggleFlag('<%= key %>', this)"
+      data-flag="<%= key %>"
+      class="relative w-12 h-6 rounded-full transition-all duration-300 flex-shrink-0 focus:outline-none <%= value ? 'bg-green-500' : 'bg-gray-600' %>">
+      <span class="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-300 <%= value ? 'translate-x-6' : 'translate-x-0.5' %>"></span>
+    </button>
+  </div>
+  <% }) %>
+</div>
+
+<div class="card p-5 mt-6">
+  <h3 class="font-bold text-white mb-1">Commerce Settings</h3>
+  <p class="text-xs text-gray-500 mb-4">Shipping and cashback amounts used across checkout and registration — no code changes or redeploys needed.</p>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div>
+      <label class="block text-xs text-gray-400 mb-1.5">Free Shipping Threshold (₹)</label>
+      <input type="number" min="0" step="1" id="freeShippingThreshold" value="<%= commerce.freeShippingThreshold %>" class="w-full rounded-xl px-4 py-2.5 text-sm"/>
+      <p class="text-xs text-gray-600 mt-1">Orders at or above this subtotal ship free.</p>
+    </div>
+    <div>
+      <label class="block text-xs text-gray-400 mb-1.5">Shipping Cost (₹)</label>
+      <input type="number" min="0" step="1" id="shippingCost" value="<%= commerce.shippingCost %>" class="w-full rounded-xl px-4 py-2.5 text-sm"/>
+      <p class="text-xs text-gray-600 mt-1">Charged when the order is below the threshold above.</p>
+    </div>
+    <div>
+      <label class="block text-xs text-gray-400 mb-1.5">Signup Cashback Amount (₹)</label>
+      <input type="number" min="0" step="1" id="signupCashbackAmount" value="<%= commerce.signupCashbackAmount %>" class="w-full rounded-xl px-4 py-2.5 text-sm"/>
+      <p class="text-xs text-gray-600 mt-1">Only credited when "Signup Cashback" above is enabled.</p>
+    </div>
+  </div>
+  <div class="flex items-center justify-between mt-5 pt-4 border-t border-white/5">
+    <p id="commerceSaveStatus" class="text-xs text-gray-500"></p>
+    <button id="btnSaveCommerce" onclick="saveCommerceSettings()" class="bg-accent-500 text-primary px-5 py-2.5 rounded-xl text-sm font-bold disabled:opacity-50">Save Settings</button>
+  </div>
+</div>
+
+<div class="card p-5 mt-6">
+  <div class="flex items-center gap-3 text-yellow-400">
+    <i class="fa-solid fa-triangle-exclamation text-lg"></i>
+    <div>
+      <p class="font-bold">Changes take effect immediately and persist across restarts</p>
+      <p class="text-sm text-gray-400">These flags control live features. Use with caution, especially Maintenance Mode which will block all non-admin users.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+async function toggleFlag(flag, btn) {
+  btn.disabled = true;
+  const current = btn.classList.contains('bg-green-500');
+  const newVal = !current;
+
+  try {
+    const r = await fetch('/admin/feature-flags', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ flag, value: newVal.toString() })
+    });
+    const d = await r.json();
+
+    if (d.success) {
+      btn.classList.toggle('bg-green-500', newVal);
+      btn.classList.toggle('bg-gray-600', !newVal);
+      btn.querySelector('span').classList.toggle('translate-x-6', newVal);
+      btn.querySelector('span').classList.toggle('translate-x-0.5', !newVal);
+      showToast(`${flag} ${newVal ? 'enabled' : 'disabled'}`, newVal ? 'success' : 'info');
+    } else {
+      showToast(d.message || 'Failed to update flag', 'error');
+    }
+  } catch (e) {
+    showToast('Network error — flag not saved', 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function saveCommerceSettings() {
+  const freeShippingThreshold = document.getElementById('freeShippingThreshold').value;
+  const shippingCost = document.getElementById('shippingCost').value;
+  const signupCashbackAmount = document.getElementById('signupCashbackAmount').value;
+  const btn = document.getElementById('btnSaveCommerce');
+  const statusEl = document.getElementById('commerceSaveStatus');
+
+  if ([freeShippingThreshold, shippingCost, signupCashbackAmount].some(v => v === '' || isNaN(v) || Number(v) < 0)) {
+    showToast('Please enter valid non-negative numbers', 'error');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+  try {
+    const r = await fetch('/admin/settings/commerce', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ freeShippingThreshold, shippingCost, signupCashbackAmount }),
+    });
+    const d = await r.json();
+    if (d.success) {
+      showToast('Commerce settings saved', 'success');
+      statusEl.textContent = 'Saved';
+    } else {
+      showToast(d.message || 'Failed to save settings', 'error');
+    }
+  } catch (e) {
+    showToast('Network error — settings not saved', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Save Settings';
+  }
+}
+</script>

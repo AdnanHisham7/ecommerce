@@ -1,0 +1,145 @@
+<% layout('layouts/admin') %>
+<%
+  const totalAlerts = products.length + (variantAlerts ? variantAlerts.length : 0);
+%>
+<div class="mb-6">
+  <h2 class="text-xl font-bold text-white">Stock Alerts</h2>
+  <p class="text-gray-500 text-sm mt-1"><%= totalAlerts %> item(s) need attention</p>
+</div>
+
+<% if (totalAlerts) { %>
+
+<!-- Base product stock alerts (variantType = 'none') -->
+<% if (products.length) { %>
+<div class="mb-6">
+  <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Simple Products</h3>
+  <div class="card overflow-hidden">
+    <table class="w-full text-sm">
+      <thead><tr class="text-xs text-gray-500 uppercase tracking-wider border-b border-white/5">
+        <th class="text-left px-5 py-3">Product</th>
+        <th class="text-left px-5 py-3">Category</th>
+        <th class="text-left px-5 py-3">Stock</th>
+        <th class="text-left px-5 py-3">Status</th>
+        <th class="text-left px-5 py-3">Update Stock</th>
+      </tr></thead>
+      <tbody class="divide-y divide-white/5">
+        <% products.forEach(p => { %>
+        <tr class="hover:bg-white/5 transition-colors">
+          <td class="px-5 py-3">
+            <div class="flex items-center gap-3">
+              <img src="<%= p.images?.[0]?.url || '/images/placeholder.png' %>" class="w-10 h-10 rounded-lg object-cover bg-gray-800"/>
+              <div><p class="font-medium text-gray-200"><%= p.name %></p><p class="text-xs text-gray-500"><%= p.brand || '—' %></p></div>
+            </div>
+          </td>
+          <td class="px-5 py-3 text-gray-400"><%= p.category?.name || '—' %></td>
+          <td class="px-5 py-3">
+            <span class="text-2xl font-black <%= p.stock === 0 ? 'text-red-400' : 'text-yellow-400' %>"><%= p.stock || 0 %></span>
+          </td>
+          <td class="px-5 py-3">
+            <span class="badge <%= p.stockStatus === 'out_of_stock' ? 'bg-red-500/20 text-red-400' : 'bg-yellow-500/20 text-yellow-400' %>">
+              <%= p.stockStatus?.replace(/_/g,' ') %>
+            </span>
+          </td>
+          <td class="px-5 py-3">
+            <div class="flex items-center gap-2">
+              <input type="number" id="stock-<%= p._id %>" min="0" value="<%= p.stock || 0 %>" class="w-24 rounded-lg px-3 py-1.5 text-sm"/>
+              <button onclick="updateBaseStock('<%= p._id %>')" class="bg-accent-500 text-primary px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-accent-400 transition-colors">Update</button>
+            </div>
+          </td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+<% } %>
+
+<!-- Variant-level stock alerts -->
+<% if (variantAlerts && variantAlerts.length) { %>
+<div class="mb-6">
+  <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Variant SKUs</h3>
+  <div class="card overflow-hidden">
+    <table class="w-full text-sm">
+      <thead><tr class="text-xs text-gray-500 uppercase tracking-wider border-b border-white/5">
+        <th class="text-left px-5 py-3">Product</th>
+        <th class="text-left px-5 py-3">Variant</th>
+        <th class="text-left px-5 py-3">SKU</th>
+        <th class="text-left px-5 py-3">Stock</th>
+        <th class="text-left px-5 py-3">Status</th>
+        <th class="text-left px-5 py-3">Update Stock</th>
+      </tr></thead>
+      <tbody class="divide-y divide-white/5">
+        <% variantAlerts.forEach((va, idx) => { %>
+        <tr class="hover:bg-white/5 transition-colors">
+          <td class="px-5 py-3">
+            <div class="flex items-center gap-3">
+              <img src="<%= va.thumb || '/images/placeholder.png' %>" class="w-10 h-10 rounded-lg object-cover bg-gray-800"/>
+              <div>
+                <p class="font-medium text-gray-200"><%= va.name %></p>
+                <a href="/admin/products/<%= va._id %>/edit" class="text-xs text-accent-500 hover:underline">Edit product</a>
+              </div>
+            </div>
+          </td>
+          <td class="px-5 py-3">
+            <span class="font-semibold text-gray-200"><%= va.variantLabel %></span>
+          </td>
+          <td class="px-5 py-3 font-mono text-xs text-gray-400"><%= va.variantSku || '—' %></td>
+          <td class="px-5 py-3">
+            <span class="text-2xl font-black <%= va.stock === 0 ? 'text-red-400' : 'text-yellow-400' %>"><%= va.stock %></span>
+          </td>
+          <td class="px-5 py-3">
+            <span class="badge <%= va.stockStatus === 'out_of_stock' ? 'bg-red-500/20 text-red-400' : 'bg-yellow-500/20 text-yellow-400' %>">
+              <%= va.stockStatus?.replace(/_/g,' ') %>
+            </span>
+          </td>
+          <td class="px-5 py-3">
+            <div class="flex items-center gap-2">
+              <input type="number" id="vstock-<%= idx %>" min="0" value="<%= va.stock %>" class="w-24 rounded-lg px-3 py-1.5 text-sm"/>
+              <button
+                onclick="updateVariantStock('<%= va._id %>', '<%= va.variantId %>', 'vstock-<%= idx %>')"
+                class="bg-accent-500 text-primary px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-accent-400 transition-colors">
+                Update
+              </button>
+            </div>
+          </td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+<% } %>
+
+<% } else { %>
+<div class="text-center py-24 text-gray-500">
+  <i class="fa-solid fa-check-circle text-green-400 text-5xl mb-4 block"></i>
+  <h3 class="text-xl font-bold text-white mb-2">All stocked up!</h3>
+  <p>No products or variants are low or out of stock right now.</p>
+</div>
+<% } %>
+
+<script>
+async function updateBaseStock(productId) {
+  const stock = document.getElementById(`stock-${productId}`).value;
+  const r = await fetch(`/admin/products/${productId}/stock`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ stock }),
+  });
+  const d = await r.json();
+  if (d.success) { showToast('Stock updated!', 'success'); setTimeout(() => window.location.reload(), 800); }
+  else showToast(d.message || 'Error', 'error');
+}
+
+async function updateVariantStock(productId, variantId, inputId) {
+  const stock = document.getElementById(inputId).value;
+  const r = await fetch(`/admin/products/${productId}/stock`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ stock, variantId }),
+  });
+  const d = await r.json();
+  if (d.success) { showToast('Variant stock updated!', 'success'); setTimeout(() => window.location.reload(), 800); }
+  else showToast(d.message || 'Error', 'error');
+}
+</script>
