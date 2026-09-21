@@ -361,6 +361,32 @@
         </div>
       </div>
       <% } %>
+
+      <!-- Product Videos — shared by every variant type -->
+      <div class="card p-6">
+        <h3 class="font-bold text-white mb-1 text-sm uppercase tracking-wider">Product Videos</h3>
+        <p class="text-xs text-gray-500 mb-3">These videos play inside the gallery on the product details page.</p>
+
+        <div class="grid grid-cols-2 gap-3 mb-3" id="videoList">
+          <% (product.videos || []).forEach((vid, vIdx) => { %>
+          <div class="relative group rounded-xl overflow-hidden border border-white/10" id="video-wrapper-<%= vIdx %>">
+            <video src="<%= vid.url %>" <% if (vid.poster) { %>poster="<%= vid.poster %>"<% } %>
+              class="w-full h-32 object-cover bg-black" controls preload="metadata" playsinline></video>
+            <button type="button" onclick="deleteProductVideo('<%= vid.publicId %>', 'video-wrapper-<%= vIdx %>')"
+              class="absolute top-1.5 right-1.5 w-7 h-7 bg-red-500 text-white rounded-full hidden group-hover:flex items-center justify-center shadow-lg z-20">
+              <i class="fa-solid fa-xmark text-xs"></i>
+            </button>
+          </div>
+          <% }) %>
+        </div>
+
+        <label class="border-2 border-dashed border-white/10 rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer hover:border-accent-500/50 transition-colors">
+          <i class="fa-solid fa-film text-gray-600 text-xl mb-1"></i>
+          <span class="text-xs text-gray-500">Upload video (MP4, WebM, MOV — up to 50MB)</span>
+          <input type="file" id="productVideosInput" multiple accept="video/*" class="hidden" onchange="uploadProductVideos(this)"/>
+        </label>
+        <p id="videoUploadStatus" class="text-xs text-accent-400 mt-2 hidden"><i class="fa-solid fa-spinner fa-spin mr-1"></i>Uploading video…</p>
+      </div>
     </div>
 
     <!-- Sidebar -->
@@ -964,6 +990,40 @@ async function deleteImage(pId, publicId, wrapperId) {
     if (loader) loader.classList.add('hidden');
     if (deleteBtn) deleteBtn.style.display = '';
   }
+}
+
+// ── Product Videos ────────────────────────────────────────────────────
+async function uploadProductVideos(input) {
+  if (!input.files?.length) return;
+  const status = document.getElementById('videoUploadStatus');
+  status.classList.remove('hidden');
+
+  const fd = new FormData();
+  Array.from(input.files).forEach(f => fd.append('videos', f));
+
+  try {
+    const r = await fetch(`/admin/products/${PRODUCT_ID}/videos`, { method: 'POST', body: fd });
+    const d = await r.json();
+    if (d.success) { showToast('Video uploaded', 'success'); setTimeout(() => location.reload(), 700); }
+    else { showToast(d.message || 'Upload failed', 'error'); status.classList.add('hidden'); }
+  } catch {
+    showToast('Network error', 'error');
+    status.classList.add('hidden');
+  }
+  input.value = '';
+}
+
+async function deleteProductVideo(publicId, wrapperId) {
+  if (!confirm('Remove this video?')) return;
+  try {
+    const r = await fetch('/admin/products/delete-video', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ productId: PRODUCT_ID, publicId }),
+    });
+    const d = await r.json();
+    if (d.success) { showToast('Video removed', 'info'); document.getElementById(wrapperId)?.remove(); }
+    else showToast(d.message || 'Error', 'error');
+  } catch { showToast('Network error', 'error'); }
 }
 
 // ── Image Drag & Drop Reorder ─────────────────────────────────────────

@@ -9,7 +9,7 @@ const AuditLog = require('../analytics/audit.model');
 const Setting = require('../settings/settings.model');
 const asyncHandler = require('../../utils/asyncHandler');
 const ApiError = require('../../utils/ApiError');
-const { deleteImage } = require('../../config/cloudinary');
+const { deleteImage, deleteVideo } = require('../../config/cloudinary');
 const { sendEmail } = require('../../utils/email');
 const notify = require('../../utils/notificationService');
 const moment = require('moment');
@@ -103,6 +103,31 @@ const getAddProduct = asyncHandler(async (req, res) => {
   res.render('admin/products/add', { title: 'Add Product', categories });
 });
 
+
+// ─────────────────────────────────────────────────────────────
+//  Upload helpers
+//  Product add/edit uses multer .fields(), so req.files is an
+//  object keyed by field name rather than a flat array.
+// ─────────────────────────────────────────────────────────────
+const pickUploaded = (files, field) => {
+  if (!files) return [];
+  if (Array.isArray(files)) return field === 'images' ? files : [];
+  return files[field] || [];
+};
+
+const mapImageFiles = (files) => files.map((f) => ({ url: f.path, publicId: f.filename }));
+
+// Cloudinary can serve a still frame of any uploaded video by swapping the
+// extension — used as the <video poster> in the storefront gallery.
+const posterFromVideoUrl = (url) =>
+  (url || '').replace(/\.(mp4|webm|mov|m4v|ogv)(\?.*)?$/i, '.jpg');
+
+const mapVideoFiles = (files) => files.map((f) => ({
+  url: f.path,
+  publicId: f.filename,
+  poster: posterFromVideoUrl(f.path),
+}));
+
 const addProduct = asyncHandler(async (req, res) => {
   const {
     name, description, shortDescription, brand, category, subcategory,
@@ -117,7 +142,9 @@ const addProduct = asyncHandler(async (req, res) => {
 
   // Images: not needed for color/color_size (stored per color variant)
   const needsBaseImages = resolvedVariantType === 'none' || resolvedVariantType === 'size';
-  const images = needsBaseImages ? (req.files?.map((f) => ({ url: f.path, publicId: f.filename })) || []) : [];
+  const uploadedImages = mapImageFiles(pickUploaded(req.files, 'images'));
+  const images = needsBaseImages ? uploadedImages : [];
+  const videos = mapVideoFiles(pickUploaded(req.files, 'videos'));
 
   let parsedSpecs = [];
   if (specifications) {
@@ -135,6 +162,7 @@ const addProduct = asyncHandler(async (req, res) => {
     lowStockThreshold: parseInt(lowStockThreshold) || 5,
     variantType: resolvedVariantType,
     images,
+    videos,
     thumbnail: images[0]?.url,
     weight: weight ? parseFloat(weight) : undefined,
     seo: { metaTitle: seoTitle, metaDescription: seoDescription, keywords: seoKeywords?.split(',') },
@@ -207,10 +235,16 @@ const updateProduct = asyncHandler(async (req, res) => {
 
   // Images: only update for 'none' and 'size' variant types
   const needsBaseImages = resolvedVT === 'none' || resolvedVT === 'size';
-  if (req.files?.length && needsBaseImages) {
-    const newImages = req.files.map((f) => ({ url: f.path, publicId: f.filename }));
-    updates.images = [...product.images, ...newImages];
-    if (!product.thumbnail) updates.thumbnail = newImages[0].url;
+  const uploadedImages = mapImageFiles(pickUploaded(req.files, 'images'));
+  if (uploadedImages.length && needsBaseImages) {
+    updates.images = [...product.images, ...uploadedImages];
+    if (!product.thumbnail) updates.thumbnail = uploadedImages[0].url;
+  }
+
+  // Videos apply to every variant type — they are product level, not per colour
+  const uploadedVideos = mapVideoFiles(pickUploaded(req.files, 'videos'));
+  if (uploadedVideos.length) {
+    updates.videos = [...(product.videos || []), ...uploadedVideos];
   }
 
   await Product.findByIdAndUpdate(req.params.id, updates, { new: true, runValidators: true });
@@ -250,6 +284,40 @@ const reorderProductImages = asyncHandler(async (req, res) => {
   const missing = product.images.filter(img => !orderedPublicIds.includes(img.publicId));
   product.images = [...reordered, ...missing];
   product.thumbnail = product.images[0]?.url || product.thumbnail;
+  await product.save();
+  res.json({ success: true });
+});
+
+// ==================== PRODUCT VIDEOS ====================
+
+/**
+ * POST /admin/products/:id/videos
+ * Appends one or more videos to the product (AJAX, from the edit page).
+ */
+const addProductVideos = asyncHandler(async (req, res) => {
+  const product = await Product.findById(req.params.id);
+  if (!product) throw ApiError.notFound('Product not found');
+
+  const videos = mapVideoFiles(req.files || []);
+  if (!videos.length) throw ApiError.badRequest('No video file received');
+
+  product.videos.push(...videos);
+  await product.save();
+
+  res.json({ success: true, message: 'Video uploaded', videos: product.videos });
+});
+
+/**
+ * POST /admin/products/delete-video
+ * Body: { productId, publicId }
+ */
+const deleteProductVideo = asyncHandler(async (req, res) => {
+  const { productId, publicId } = req.body;
+  const product = await Product.findById(productId);
+  if (!product) throw ApiError.notFound('Product not found');
+
+  await deleteVideo(publicId).catch(() => {});
+  product.videos = (product.videos || []).filter((v) => v.publicId !== publicId);
   await product.save();
   res.json({ success: true });
 });
@@ -1438,6 +1506,7 @@ module.exports = {
   getDashboard,
   markCodOrderPaid,
   getProducts, getAddProduct, addProduct, getEditProduct, updateProduct, deleteProduct, deleteProductImage, reorderProductImages,
+  addProductVideos, deleteProductVideo,
   updateVariantType,
   addColorVariant, updateColorVariant, deleteColorVariant, deleteColorVariantImage, reorderColorImages,
   addSizeVariant, updateSizeVariant, deleteSizeVariant,

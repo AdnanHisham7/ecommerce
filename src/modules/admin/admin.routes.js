@@ -4,7 +4,13 @@ const ctrl = require('./admin.controller');
 const { adminAuthenticate, requirePermission } = require('../../middlewares/auth.middleware');
 const noCache = require('../../middlewares/noCache.middleware');
 const { adminLimiter } = require('../../middlewares/rateLimit.middleware');
-const { productUpload, avatarUpload, bannerUpload } = require('../../config/cloudinary');
+const { productUpload, productMediaUpload, avatarUpload, bannerUpload } = require('../../config/cloudinary');
+
+// Product add/edit accepts both pictures and product videos in one submit
+const productMediaFields = productMediaUpload.fields([
+  { name: 'images', maxCount: 8 },
+  { name: 'videos', maxCount: 4 },
+]);
 
 // ---- Admin Auth (no middleware) ----
 router.get('/login', ctrl.getAdminLogin);
@@ -24,12 +30,16 @@ router.get('/analytics', noCache, requirePermission('view_analytics'), ctrl.getA
 // ---- Products ----
 router.get('/products', noCache, requirePermission('manage_products'), ctrl.getProducts);
 router.get('/products/add', noCache, requirePermission('manage_products'), ctrl.getAddProduct);
-router.post('/products/add', productUpload.array('images', 8), noCache, requirePermission('manage_products'), ctrl.addProduct);
+router.post('/products/add', productMediaFields, noCache, requirePermission('manage_products'), ctrl.addProduct);
 router.get('/products/:id/edit', noCache, requirePermission('manage_products'), ctrl.getEditProduct);
-router.post('/products/:id/edit', productUpload.array('images', 8), noCache, requirePermission('manage_products'), ctrl.updateProduct);
+router.post('/products/:id/edit', productMediaFields, noCache, requirePermission('manage_products'), ctrl.updateProduct);
 router.post('/products/:id/delete', noCache, requirePermission('manage_products'), ctrl.deleteProduct);
 router.post('/products/delete-image', noCache, requirePermission('manage_products'), ctrl.deleteProductImage);
 router.post('/products/:id/reorder-images', noCache, requirePermission('manage_products'), ctrl.reorderProductImages);
+
+// ---- Product Videos ----
+router.post('/products/:id/videos', productMediaUpload.array('videos', 4), noCache, requirePermission('manage_products'), ctrl.addProductVideos);
+router.post('/products/delete-video', noCache, requirePermission('manage_products'), ctrl.deleteProductVideo);
 
 // ---- Variant Type ----
 router.put('/products/:id/variant-type', noCache, requirePermission('manage_products'), ctrl.updateVariantType);

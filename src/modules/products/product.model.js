@@ -80,6 +80,15 @@ const productSchema = new mongoose.Schema(
     images: [{ url: { type: String, required: true }, publicId: String, alt: String }],
     thumbnail: String,
 
+    // Product videos — played inside the gallery on the product details page.
+    // Shared across every variant type (including color / color_size).
+    videos: [{
+      url:      { type: String, required: true },
+      publicId: String,
+      poster:   String,   // auto-generated Cloudinary still frame
+      title:    String,
+    }],
+
     // ── Variant System ──────────────────────────────────────────────
     colorVariants: [colorVariantSchema],
     sizeVariants:  [sizeVariantSchema],

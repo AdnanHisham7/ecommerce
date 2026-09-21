@@ -136,6 +136,19 @@
         <div id="imagePreview" class="grid grid-cols-3 gap-2 mt-3"></div>
       </div>
 
+      <!-- Product Videos — always available, whatever the variant type -->
+      <div class="card p-5" id="videosSection">
+        <h3 class="font-bold text-white mb-1 text-sm uppercase tracking-wider">Product Videos</h3>
+        <p class="text-xs text-gray-500 mb-3">Plays inside the gallery on the product details page.</p>
+        <div class="border-2 border-dashed border-white/10 rounded-xl p-6 text-center hover:border-accent-500/50 transition-colors cursor-pointer" onclick="document.getElementById('videosInput').click()">
+          <i class="fa-solid fa-film text-3xl text-gray-600 mb-2 block"></i>
+          <p class="text-sm text-gray-400 font-medium">Drop videos here or click</p>
+          <p class="text-xs text-gray-600 mt-1">MP4, WebM, MOV up to 50MB each</p>
+        </div>
+        <input type="file" id="videosInput" name="videos" multiple accept="video/*" class="hidden" onchange="previewVideos(this)"/>
+        <div id="videoPreview" class="grid grid-cols-2 gap-2 mt-3"></div>
+      </div>
+
       <!-- Images hidden notice for color-based variants -->
       <div class="card p-5 hidden" id="imagesHiddenNotice">
         <div class="flex items-start gap-3">
@@ -303,6 +316,20 @@ function previewImages(input) {
       preview.appendChild(div);
     };
     reader.readAsDataURL(file);
+  });
+}
+
+function previewVideos(input) {
+  const preview = document.getElementById('videoPreview');
+  preview.innerHTML = '';
+  Array.from(input.files).forEach(file => {
+    const div = document.createElement('div');
+    div.className = 'rounded-lg border border-white/10 p-2 text-xs text-gray-300 flex items-center gap-2';
+    const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
+    div.innerHTML = `<i class="fa-solid fa-circle-play text-accent-500"></i>
+      <span class="truncate flex-1">${file.name}</span>
+      <span class="text-gray-500">${sizeMb} MB</span>`;
+    preview.appendChild(div);
   });
 }
 

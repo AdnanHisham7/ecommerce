@@ -149,6 +149,16 @@
       margin-bottom: 3px;
     }
 
+    .items-list .variant-label {
+      background: none;
+      padding: 0;
+      margin: 0;
+      font-weight: 700;
+      color: #0f172a;
+      text-transform: uppercase;
+      letter-spacing: 0.2px;
+    }
+
     @page {
     size: A4 portrait;
     margin: 0 !important; /* Forces the browser to completely drop headers/footers */
@@ -303,8 +313,17 @@
                 <% if (order.items && order.items.length) { %>
                   <div class="items-list">
                     <i class="fas fa-tag"></i> Products: 
-                    <% order.items.forEach((item, idx) => { %>
-                      <span><%= item.productName %><% if (item.quantity > 1) { %> (x<%= item.quantity %>)<% } %></span>
+                    <% order.items.forEach((item, idx) => {
+                      // Show the exact variant that was bought so the packer
+                      // picks the right colour / size off the shelf.
+                      const v = item.variant || {};
+                      const variantParts = [];
+                      if (v.color) variantParts.push(v.color);
+                      if (v.size)  variantParts.push(`Size ${v.size}`);
+                    %>
+                      <span>
+                        <%= item.productName %><% if (variantParts.length) { %> — <span class="variant-label"><%= variantParts.join(' / ') %></span><% } %><% if (item.quantity > 1) { %> (x<%= item.quantity %>)<% } %>
+                      </span>
                     <% }) %>
                   </div>
                 <% } %>
