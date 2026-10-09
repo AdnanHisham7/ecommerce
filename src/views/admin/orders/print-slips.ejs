@@ -365,7 +365,7 @@
                 <div class="order-summary-line">
                   <span class="order-number"><i class="fas fa-hashtag"></i> Order #<%= order.orderNumber %></span>
                   <span>•</span>
-                  <span><i class="far fa-calendar-alt"></i> <%= new Date(order.createdAt).toLocaleDateString('en-IN') %></span>
+                  <span><i class="far fa-calendar-alt"></i> <%= typeof formatISTDate === 'function' ? formatISTDate(order.createdAt) : new Date(order.createdAt).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric' }) %></span>
                   <span>•</span>
                   <span><%= order.items.length %> Item(s)</span>
                   <span>•</span>

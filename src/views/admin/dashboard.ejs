@@ -97,7 +97,7 @@
             <td class="px-5 py-3"><span class="text-gray-300"><%= order.user?.name || 'N/A' %></span></td>
             <td class="px-5 py-3 font-semibold text-white">₹<%= order.totalAmount.toLocaleString('en-IN') %></td>
             <td class="px-5 py-3"><span class="badge <%= sc %> capitalize"><%= order.orderStatus %></span></td>
-            <td class="px-5 py-3 text-gray-500 text-xs"><%= new Date(order.createdAt).toLocaleDateString('en-IN', {day:'numeric',month:'short'}) %></td>
+            <td class="px-5 py-3 text-gray-500 text-xs"><%= typeof formatISTDate === 'function' ? formatISTDate(order.createdAt, { day: 'numeric', month: 'short' }) : new Date(order.createdAt).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short' }) %></td>
           </tr>
           <% }) %>
         </tbody>

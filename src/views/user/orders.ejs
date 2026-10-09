@@ -20,7 +20,7 @@
       <div class="flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
         <div class="flex items-center gap-4">
           <div><p class="text-xs text-gray-500 dark:text-gray-400">Order ID</p><p class="font-bold text-sm dark:text-white">#<%= order.orderNumber %></p></div>
-          <div class="hidden md:block"><p class="text-xs text-gray-500 dark:text-gray-400">Date</p><p class="text-sm dark:text-gray-300"><%= new Date(order.createdAt).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}) %></p></div>
+          <div class="hidden md:block"><p class="text-xs text-gray-500 dark:text-gray-400">Date</p><p class="text-sm dark:text-gray-300"><%= typeof formatISTDate === 'function' ? formatISTDate(order.createdAt) : new Date(order.createdAt).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric' }) %></p></div>
           <div><p class="text-xs text-gray-500 dark:text-gray-400">Total</p><p class="font-bold text-sm dark:text-white">₹<%= order.totalAmount.toLocaleString('en-IN') %></p></div>
         </div>
         <div class="flex items-center gap-3">

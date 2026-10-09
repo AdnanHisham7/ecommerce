@@ -64,7 +64,7 @@
         <div class="flex-1 min-w-0">
           <p class="text-sm font-medium dark:text-gray-200 truncate"><%= tx.description %></p>
           <p class="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
-            <%= new Date(tx.createdAt).toLocaleDateString('en-IN', {day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) %>
+            <%= typeof formatISTDateTime === 'function' ? formatISTDateTime(tx.createdAt) : new Date(tx.createdAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit', hour12: true }) %>
           </p>
         </div>
         <div class="text-right flex-shrink-0">

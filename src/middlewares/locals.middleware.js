@@ -4,6 +4,7 @@ const Category = require('../modules/categories/category.model');
 const Setting = require('../modules/settings/settings.model');
 const env = require('../config/env');
 const brand = require('../config/brand');
+const { formatISTDateTime, formatISTDate, formatISTTime } = require('../utils/dateHelper');
 
 /**
  * Inject commonly needed data into res.locals for all views.
@@ -11,6 +12,11 @@ const brand = require('../config/brand');
  */
 const injectLocals = async (req, res, next) => {
   try {
+    // ── IST Date/Time Helpers (available in EVERY template) ──
+    res.locals.formatISTDateTime = formatISTDateTime;
+    res.locals.formatISTDate = formatISTDate;
+    res.locals.formatISTTime = formatISTTime;
+
     // ── Brand (always available in every template as `brand`) ──
     res.locals.brand = brand;
 

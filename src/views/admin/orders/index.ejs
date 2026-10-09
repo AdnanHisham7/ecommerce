@@ -85,7 +85,7 @@
             <span class="badge <%= statusColors[order.orderStatus] || 'bg-gray-500/20 text-gray-400' %> capitalize"><%= order.orderStatus?.replace(/_/g,' ') %></span>
            </td>
           <td class="px-5 py-3 text-gray-500 text-xs whitespace-nowrap">
-            <%= new Date(order.createdAt).toLocaleDateString('en-IN', {day:'numeric',month:'short',year:'numeric'}) %>
+            <%= typeof formatISTDate === 'function' ? formatISTDate(order.createdAt) : new Date(order.createdAt).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric' }) %>
            </td>
           <td class="px-5 py-3">
             <a href="/admin/orders/<%= order._id %>" class="p-2 hover:bg-white/10 rounded-lg text-blue-400 hover:text-blue-300 transition-colors inline-flex" title="View">

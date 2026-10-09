@@ -49,7 +49,7 @@ const generateInvoice = (order, res) => {
     .text("INVOICE", 400, 140, { align: "right" });
   doc.fontSize(10).font("Helvetica").fillColor("#666666");
   doc.text(`Invoice #: ${order.orderNumber}`, 400, 168, { align: "right" });
-  doc.text(`Date: ${moment(order.createdAt).format("DD MMM YYYY")}`, 400, 182, {
+  doc.text(`Date: ${moment(order.createdAt).utcOffset("+05:30").format("DD MMM YYYY")}`, 400, 182, {
     align: "right",
   });
   doc.text(`Status: ${order.orderStatus}`, 400, 196, { align: "right" });

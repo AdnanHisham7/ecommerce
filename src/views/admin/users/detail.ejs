@@ -23,8 +23,8 @@
       <div class="flex justify-between"><span class="text-gray-500">Verified</span><span class="<%= user.isEmailVerified ? 'text-green-400' : 'text-red-400' %>"><%= user.isEmailVerified ? 'Yes' : 'No' %></span></div>
       <div class="flex justify-between"><span class="text-gray-500">Provider</span><span class="text-gray-300 capitalize"><%= user.authProvider %></span></div>
       <div class="flex justify-between"><span class="text-gray-500">2FA</span><span class="<%= user.twoFactorEnabled ? 'text-green-400' : 'text-gray-500' %>"><%= user.twoFactorEnabled ? 'Enabled' : 'Disabled' %></span></div>
-      <div class="flex justify-between"><span class="text-gray-500">Joined</span><span class="text-gray-300"><%= new Date(user.createdAt).toLocaleDateString('en-IN') %></span></div>
-      <div class="flex justify-between"><span class="text-gray-500">Last Login</span><span class="text-gray-300"><%= user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleDateString('en-IN') : '—' %></span></div>
+      <div class="flex justify-between"><span class="text-gray-500">Joined</span><span class="text-gray-300"><%= typeof formatISTDate === 'function' ? formatISTDate(user.createdAt) : new Date(user.createdAt).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' }) %></span></div>
+      <div class="flex justify-between"><span class="text-gray-500">Last Login</span><span class="text-gray-300"><%= user.lastLoginAt ? (typeof formatISTDateTime === 'function' ? formatISTDateTime(user.lastLoginAt) : new Date(user.lastLoginAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })) : '—' %></span></div>
     </div>
 
     <div class="card p-5 space-y-3 text-sm">
@@ -57,7 +57,7 @@
         <div class="flex items-center justify-between p-4">
           <div>
             <p class="font-semibold text-accent-400 text-sm">#<%= order.orderNumber %></p>
-            <p class="text-xs text-gray-500"><%= new Date(order.createdAt).toLocaleDateString('en-IN') %></p>
+            <p class="text-xs text-gray-500"><%= typeof formatISTDate === 'function' ? formatISTDate(order.createdAt) : new Date(order.createdAt).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' }) %></p>
           </div>
           <div class="flex items-center gap-3">
             <span class="font-bold text-white text-sm">₹<%= order.totalAmount.toLocaleString('en-IN') %></span>

@@ -14,7 +14,7 @@
 <div class="flex items-center justify-between mb-6">
   <div>
     <h2 class="text-xl font-bold text-white">Order #<%= order.orderNumber %></h2>
-    <p class="text-gray-500 text-sm"><%= new Date(order.createdAt).toLocaleString('en-IN') %></p>
+    <p class="text-gray-500 text-sm"><%= typeof formatISTDateTime === 'function' ? formatISTDateTime(order.createdAt) : new Date(order.createdAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) %></p>
   </div>
   <div class="flex items-center gap-3">
     <span class="badge <%= statusColors[order.orderStatus] || 'bg-gray-500/20 text-gray-400' %> capitalize text-sm px-3 py-1"><%= order.orderStatus?.replace(/_/g,' ') %></span>
@@ -105,7 +105,7 @@
                 <i class="fa-solid fa-truck-fast"></i> View Tracking Link <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
               </a>
               <% } %>
-              <p class="text-xs text-gray-600 mt-1"><%= new Date(t.timestamp).toLocaleString('en-IN') %></p>
+              <p class="text-xs text-gray-600 mt-1"><%= typeof formatISTDateTime === 'function' ? formatISTDateTime(t.timestamp) : new Date(t.timestamp).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) %></p>
             </div>
           </div>
           <% }) %>
@@ -222,7 +222,7 @@
         <% if (order.paidAt) { %>
         <div class="flex justify-between text-xs">
           <span class="text-gray-500">Paid At</span>
-          <span class="text-gray-400"><%= new Date(order.paidAt).toLocaleString('en-IN') %></span>
+          <span class="text-gray-400"><%= typeof formatISTDateTime === 'function' ? formatISTDateTime(order.paidAt) : new Date(order.paidAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) %></span>
         </div>
         <% } %>
       </div>
