@@ -27,7 +27,10 @@
         %>
         <img id="mainImage" src="<%= initialImg %>"
           alt="<%= product.name %>" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"/>
-        <video id="mainVideo" class="hidden w-full h-full object-contain bg-black" controls playsinline preload="metadata"></video>
+        <video id="mainVideo" class="hidden w-full h-full object-contain bg-black" controls playsinline webkit-playsinline muted preload="auto" crossorigin="anonymous">
+          <source id="mainVideoSource" src="" type="video/mp4">
+          Your browser does not support the video tag.
+        </video>
         <% if (product.discountPercent > 0) { %>
           <div class="absolute top-4 left-4 bg-red-500 text-white text-sm font-bold px-3 py-1 rounded-full"><%= product.discountPercent %>% OFF</div>
         <% } %>
@@ -554,12 +557,25 @@ function highlightThumb(btn) {
   }
 }
 
+// Helper to ensure cross-browser playable video URL (converts Cloudinary .mov/.webm to .mp4)
+function getPlayableVideoUrl(rawUrl) {
+  if (!rawUrl) return '';
+  if (rawUrl.includes('res.cloudinary.com')) {
+    return rawUrl.replace(/\.(mov|m4v|ogv|webm)(\?.*)?$/i, '.mp4$2');
+  }
+  return rawUrl;
+}
+
 // Swap the stage back to the still image and stop any playing video.
 function showImageStage() {
   const video = document.getElementById('mainVideo');
   const img   = document.getElementById('mainImage');
   const hint  = document.getElementById('zoomHint');
-  if (video) { video.pause(); video.classList.add('hidden'); }
+  if (video) {
+    video.pause();
+    try { video.currentTime = 0; } catch (e) {}
+    video.classList.add('hidden');
+  }
   img.classList.remove('hidden');
   hint?.classList.remove('hidden');
 }
@@ -577,17 +593,38 @@ function setMainImageUrl(url) {
 
 // Play a product video in place of the main image.
 function setMainVideo(url, btn) {
-  const video = document.getElementById('mainVideo');
-  const img   = document.getElementById('mainImage');
-  const hint  = document.getElementById('zoomHint');
+  const video  = document.getElementById('mainVideo');
+  const source = document.getElementById('mainVideoSource');
+  const img    = document.getElementById('mainImage');
+  const hint   = document.getElementById('zoomHint');
   if (!video) return;
+
+  const playableUrl = getPlayableVideoUrl(url);
 
   img.classList.add('hidden');
   hint?.classList.add('hidden');
   video.classList.remove('hidden');
-  if (video.getAttribute('src') !== url) video.setAttribute('src', url);
+
+  // Muted as default (critical for browser autoplay policies)
+  video.muted = true;
+  video.defaultMuted = true;
+  video.volume = 0;
+
+  if (video.getAttribute('src') !== playableUrl) {
+    if (source) source.setAttribute('src', playableUrl);
+    video.setAttribute('src', playableUrl);
+    video.load();
+  }
+
   highlightThumb(btn);
-  video.play().catch(() => {}); // autoplay may be blocked — controls remain
+
+  const playPromise = video.play();
+  if (playPromise !== undefined) {
+    playPromise.catch((err) => {
+      console.warn('Video auto-playback was prevented by browser policy:', err);
+      video.controls = true;
+    });
+  }
 }
 
 function swapThumbnailsForColor(images) {

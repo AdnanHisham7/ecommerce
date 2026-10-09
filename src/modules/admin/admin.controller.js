@@ -15,6 +15,19 @@ const notify = require('../../utils/notificationService');
 const moment = require('moment');
 const { amountToIndianWords } = require('../../utils/numberToWords');
 
+// Helper to get effective selling/display price for a product
+const getProductDisplayPrice = (p) => {
+  if (!p) return 0;
+  if (p.discountedPrice && p.discountedPrice > 0) return p.discountedPrice;
+  if (p.variantType && p.variantType !== 'none' && Array.isArray(p.variants) && p.variants.length > 0) {
+    const activePrices = p.variants.filter((v) => v.isActive && v.price > 0).map((v) => v.price);
+    if (activePrices.length > 0) return Math.min(...activePrices);
+    const anyPrices = p.variants.filter((v) => v.price > 0).map((v) => v.price);
+    if (anyPrices.length > 0) return Math.min(...anyPrices);
+  }
+  return p.basePrice || 0;
+};
+
 // ==================== DASHBOARD ====================
 const getDashboard = asyncHandler(async (req, res) => {
   const today = moment().startOf('day').toDate();
@@ -24,10 +37,10 @@ const getDashboard = asyncHandler(async (req, res) => {
 
   const [
     totalRevenue, monthRevenue, lastMonthRevenue,
-    totalOrders, todayOrders, pendingOrders,
+    totalOrders, todayOrders, pendingOrders, confirmedOrders,
     totalUsers, newUsersThisMonth,
     totalProducts, lowStockProducts,
-    recentOrders, topProducts,
+    recentOrders, topSellingAggregation, rawProducts,
     revenueByDay, ordersByStatus,
   ] = await Promise.all([
     Order.aggregate([{ $match: { paymentStatus: 'paid' } }, { $group: { _id: null, total: { $sum: '$totalAmount' } } }]),
@@ -36,19 +49,47 @@ const getDashboard = asyncHandler(async (req, res) => {
     Order.countDocuments(),
     Order.countDocuments({ createdAt: { $gte: today } }),
     Order.countDocuments({ orderStatus: 'pending' }),
+    Order.countDocuments({ orderStatus: 'confirmed' }),
     User.countDocuments({ role: 'user' }),
     User.countDocuments({ role: 'user', createdAt: { $gte: thisMonth } }),
     Product.countDocuments({ isActive: true }),
     Product.countDocuments({ stockStatus: { $in: ['low_stock', 'out_of_stock'] }, isActive: true }),
     Order.find().sort({ createdAt: -1 }).limit(8).populate('user', 'name email').lean(),
-    Product.find({ isActive: true }).sort({ salesCount: -1 }).limit(5).select('name slug images thumbnail basePrice compareAtPrice discountPercent discountedPrice avgRating reviewCount stockStatus brand isFeatured isNewArrival variantType colorVariants variants description shortDescription').lean(),
+    Order.aggregate([
+      { $match: { orderStatus: { $ne: 'cancelled' } } },
+      { $unwind: '$items' },
+      { $match: { 'items.itemStatus': { $ne: 'cancelled' } } },
+      { $group: { _id: '$items.product', soldCount: { $sum: '$items.quantity' }, totalRevenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } } } },
+      { $sort: { soldCount: -1 } },
+      { $limit: 10 },
+    ]),
+    Product.find({ isActive: true }).select('name slug images thumbnail basePrice compareAtPrice discountPercent discountedPrice avgRating reviewCount stockStatus brand isFeatured isNewArrival variantType colorVariants variants description shortDescription salesCount').lean(),
     Order.aggregate([
       { $match: { paymentStatus: 'paid', createdAt: { $gte: moment().subtract(7, 'days').toDate() } } },
       { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } }, revenue: { $sum: '$totalAmount' }, orders: { $sum: 1 } } },
       { $sort: { _id: 1 } },
     ]),
-    Order.aggregate([{ $group: { _id: '$orderStatus', count: { $sum: 1 } } }]),
+    Order.aggregate([{ $group: { _id: '$orderStatus', count: { $sum: 1 } } }, { $sort: { count: -1 } }]),
   ]);
+
+  const orderSalesMap = new Map(topSellingAggregation.map((s) => [s._id ? s._id.toString() : '', s]));
+
+  const processedProducts = rawProducts.map((p) => {
+    const orderSales = orderSalesMap.get(p._id.toString());
+    const soldCount = orderSales ? orderSales.soldCount : (p.salesCount || 0);
+    const displayPrice = getProductDisplayPrice(p);
+    const totalRevenue = orderSales ? orderSales.totalRevenue : (soldCount * displayPrice);
+    return {
+      ...p,
+      salesCount: soldCount,
+      soldCount,
+      displayPrice,
+      totalRevenue,
+    };
+  });
+
+  processedProducts.sort((a, b) => (b.salesCount || 0) - (a.salesCount || 0));
+  const topProducts = processedProducts.slice(0, 5);
 
   const revenueGrowth = lastMonthRevenue[0]?.total
     ? (((monthRevenue[0]?.total || 0) - lastMonthRevenue[0].total) / lastMonthRevenue[0].total) * 100
@@ -60,7 +101,7 @@ const getDashboard = asyncHandler(async (req, res) => {
       totalRevenue: totalRevenue[0]?.total || 0,
       monthRevenue: monthRevenue[0]?.total || 0,
       revenueGrowth: revenueGrowth.toFixed(1),
-      totalOrders, todayOrders, pendingOrders,
+      totalOrders, todayOrders, pendingOrders, confirmedOrders,
       totalUsers, newUsersThisMonth,
       totalProducts, lowStockProducts,
     },
@@ -441,18 +482,51 @@ const addSizeVariant = asyncHandler(async (req, res) => {
   const { size } = req.body;
   const product = await Product.findById(req.params.id);
   if (!product) throw ApiError.notFound('Product not found');
-  if (!size) throw ApiError.badRequest('Size is required');
+  if (!size || !size.trim()) throw ApiError.badRequest('Size is required');
 
-  const exists = product.sizeVariants.find(
-    (s) => s.size.toLowerCase() === size.toLowerCase()
-  );
-  if (exists) throw ApiError.badRequest('This size already exists');
+  // Support comma-separated sizes: e.g. "L, M, XL, XXL, XXXL"
+  const rawSizes = size
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
 
-  product.sizeVariants.push({ size: size.trim() });
+  if (!rawSizes.length) throw ApiError.badRequest('Please enter at least one valid size');
+
+  const existingSizes = (product.sizeVariants || []).map((s) => s.size.toLowerCase());
+  const addedSizes = [];
+  const skippedSizes = [];
+
+  for (const s of rawSizes) {
+    if (existingSizes.includes(s.toLowerCase())) {
+      skippedSizes.push(s);
+    } else {
+      product.sizeVariants.push({ size: s, isActive: true });
+      existingSizes.push(s.toLowerCase());
+      addedSizes.push(s);
+    }
+  }
+
+  if (addedSizes.length === 0) {
+    throw ApiError.badRequest(`Size(s) already exist: ${skippedSizes.join(', ')}`);
+  }
+
   await product.save();
 
-  const newSize = product.sizeVariants[product.sizeVariants.length - 1];
-  res.json({ success: true, message: 'Size added', sizeVariant: newSize });
+  let message = addedSizes.length === 1
+    ? `Size "${addedSizes[0]}" added successfully`
+    : `${addedSizes.length} sizes added (${addedSizes.join(', ')})`;
+
+  if (skippedSizes.length > 0) {
+    message += ` (${skippedSizes.join(', ')} already existed)`;
+  }
+
+  res.json({
+    success: true,
+    message,
+    addedSizes,
+    skippedSizes,
+    sizeVariants: product.sizeVariants,
+  });
 });
 
 const updateSizeVariant = asyncHandler(async (req, res) => {
@@ -1035,22 +1109,42 @@ const deleteBanner = asyncHandler(async (req, res) => {
 // ==================== ANALYTICS ====================
 const getAnalytics = asyncHandler(async (req, res) => {
   const { period = '30' } = req.query;
+  const isLifetime = period === 'lifetime' || period === 'all';
   const days = parseInt(period);
-  const startDate = moment().subtract(days, 'days').toDate();
+  const startDate = (!isLifetime && !isNaN(days) && days > 0)
+    ? moment().subtract(days, 'days').toDate()
+    : null;
 
-  const [revenueData, orderData, topProducts, topCategories, userGrowth, paymentMethods] = await Promise.all([
+  const dateFilter = startDate ? { createdAt: { $gte: startDate } } : {};
+  const paidDateFilter = startDate ? { paymentStatus: 'paid', createdAt: { $gte: startDate } } : { paymentStatus: 'paid' };
+
+  const [
+    revenueData, orderData, orderTopProducts, topCategories, userGrowth, paymentMethods, rawActiveProducts, totalOrdersInPeriod
+  ] = await Promise.all([
     Order.aggregate([
-      { $match: { paymentStatus: 'paid', createdAt: { $gte: startDate } } },
+      { $match: paidDateFilter },
       { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } }, revenue: { $sum: '$totalAmount' }, orders: { $sum: 1 } } },
       { $sort: { _id: 1 } },
     ]),
     Order.aggregate([
-      { $match: { createdAt: { $gte: startDate } } },
+      { $match: dateFilter },
       { $group: { _id: '$orderStatus', count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
     ]),
-    Product.find({ isActive: true }).sort({ salesCount: -1 }).limit(10).select('name slug images thumbnail basePrice compareAtPrice discountPercent discountedPrice avgRating reviewCount stockStatus brand isFeatured isNewArrival variantType colorVariants variants description shortDescription').lean(),
     Order.aggregate([
-      { $match: { paymentStatus: 'paid', createdAt: { $gte: startDate } } },
+      { $match: { orderStatus: { $ne: 'cancelled' }, ...dateFilter } },
+      { $unwind: '$items' },
+      { $match: { 'items.itemStatus': { $ne: 'cancelled' } } },
+      { $group: {
+        _id: '$items.product',
+        soldCount: { $sum: '$items.quantity' },
+        totalRevenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } },
+      }},
+      { $sort: { soldCount: -1 } },
+      { $limit: 10 },
+    ]),
+    Order.aggregate([
+      { $match: paidDateFilter },
       { $unwind: '$items' },
       { $lookup: { from: 'products', localField: 'items.product', foreignField: '_id', as: 'product' } },
       { $unwind: '$product' },
@@ -1061,19 +1155,69 @@ const getAnalytics = asyncHandler(async (req, res) => {
       { $limit: 6 },
     ]),
     User.aggregate([
-      { $match: { role: 'user', createdAt: { $gte: startDate } } },
+      { $match: { role: 'user', ...dateFilter } },
       { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } }, count: { $sum: 1 } } },
       { $sort: { _id: 1 } },
     ]),
     Order.aggregate([
-      { $match: { paymentStatus: 'paid', createdAt: { $gte: startDate } } },
+      { $match: paidDateFilter },
       { $group: { _id: '$paymentMethod', count: { $sum: 1 }, total: { $sum: '$totalAmount' } } },
+      { $sort: { total: -1 } },
     ]),
+    Product.find({ isActive: true })
+      .select('name slug images thumbnail basePrice compareAtPrice discountPercent discountedPrice avgRating reviewCount stockStatus brand isFeatured isNewArrival variantType colorVariants variants description shortDescription salesCount')
+      .lean(),
+    Order.countDocuments(dateFilter),
   ]);
+
+  const activeProductMap = new Map(rawActiveProducts.map((p) => [p._id.toString(), p]));
+
+  // Build top products list with accurate soldCount, displayPrice, and totalRevenue
+  let topProducts = [];
+  const addedIds = new Set();
+
+  for (const s of orderTopProducts) {
+    if (!s._id) continue;
+    const prod = activeProductMap.get(s._id.toString());
+    if (prod) {
+      const displayPrice = getProductDisplayPrice(prod);
+      topProducts.push({
+        ...prod,
+        salesCount: s.soldCount,
+        soldCount: s.soldCount,
+        displayPrice,
+        totalRevenue: s.totalRevenue != null ? s.totalRevenue : (s.soldCount * displayPrice),
+      });
+      addedIds.add(prod._id.toString());
+    }
+  }
+
+  // If orderTopProducts has fewer than 10 items, fill remaining slots with top active products by salesCount
+  if (topProducts.length < 10) {
+    const remainingProducts = rawActiveProducts
+      .filter((p) => !addedIds.has(p._id.toString()))
+      .map((p) => ({
+        ...p,
+        salesCount: isLifetime ? (p.salesCount || 0) : 0,
+        soldCount: isLifetime ? (p.salesCount || 0) : 0,
+        displayPrice: getProductDisplayPrice(p),
+        totalRevenue: 0,
+      }))
+      .sort((a, b) => (b.salesCount || 0) - (a.salesCount || 0));
+
+    topProducts = topProducts.concat(remainingProducts.slice(0, 10 - topProducts.length));
+  }
 
   res.render('admin/analytics/index', {
     title: 'Analytics & Reports',
-    revenueData, orderData, topProducts, topCategories, userGrowth, paymentMethods, period,
+    revenueData,
+    orderData,
+    topProducts,
+    topCategories,
+    userGrowth,
+    paymentMethods,
+    period: isLifetime ? 'lifetime' : String(period),
+    totalOrdersInPeriod,
   });
 });
 

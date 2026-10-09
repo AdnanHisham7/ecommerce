@@ -25,9 +25,9 @@
 
 <!-- Alert Cards -->
 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-  <a href="/admin/orders?status=pending" class="stat-card p-4 flex items-center gap-4 hover:border-yellow-500/30 transition-colors border">
-    <div class="w-10 h-10 rounded-xl bg-yellow-500/20 flex items-center justify-center"><i class="fa-solid fa-clock text-yellow-400"></i></div>
-    <div><p class="text-xl font-black text-white"><%= stats.pendingOrders %></p><p class="text-xs text-gray-500">Pending Orders</p></div>
+  <a href="/admin/orders?status=confirmed" class="stat-card p-4 flex items-center gap-4 hover:border-blue-500/30 transition-colors border">
+    <div class="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center"><i class="fa-solid fa-boxes-packing text-blue-400"></i></div>
+    <div><p class="text-xl font-black text-white"><%= stats.confirmedOrders %></p><p class="text-xs text-gray-500">Confirmed Orders</p></div>
   </a>
   <a href="/admin/stock-alerts" class="stat-card p-4 flex items-center gap-4 hover:border-red-500/30 transition-colors border">
     <div class="w-10 h-10 rounded-xl bg-red-500/20 flex items-center justify-center"><i class="fa-solid fa-triangle-exclamation text-red-400"></i></div>
@@ -54,12 +54,15 @@
   <div class="card p-5">
     <h3 class="font-bold text-white mb-4">Orders by Status</h3>
     <canvas id="statusChart" height="180"></canvas>
-    <div class="mt-4 space-y-2">
-      <% ordersByStatus.slice(0,5).forEach((s, i) => {
-        const colors = ['#f0a500','#3b82f6','#10b981','#8b5cf6','#ef4444'];
+    <div class="mt-4 space-y-2 max-h-48 overflow-y-auto pr-1">
+      <% 
+        const statusColorPalette = { pending: '#f59e0b', confirmed: '#3b82f6', processing: '#6366f1', packed: '#14b8a6', dispatched: '#8b5cf6', shipped: '#a855f7', out_for_delivery: '#06b6d4', delivered: '#10b981', cancelled: '#ef4444', returned: '#f97316', refunded: '#6b7280' };
+        const fallbackColors = ['#f0a500','#3b82f6','#10b981','#8b5cf6','#ef4444','#06b6d4','#f97316','#84cc16','#6b7280'];
+        ordersByStatus.forEach((s, i) => {
+          const color = statusColorPalette[s._id] || fallbackColors[i % fallbackColors.length];
       %>
       <div class="flex items-center justify-between text-xs">
-        <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full" style="background:<%= colors[i] %>"></span><span class="text-gray-400 capitalize"><%= s._id %></span></div>
+        <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:<%= color %>"></span><span class="text-gray-400 capitalize"><%= s._id?.replace(/_/g, ' ') %></span></div>
         <span class="text-gray-300 font-semibold"><%= s.count %></span>
       </div>
       <% }) %>
@@ -124,7 +127,7 @@
         <img src="<%= displayImg %>" class="w-10 h-10 rounded-lg object-cover bg-gray-800 flex-shrink-0" alt="<%= p.name %>"/>
         <div class="flex-1 min-w-0">
           <p class="text-sm font-medium text-gray-200 truncate"><%= p.name %></p>
-          <p class="text-xs text-gray-500"><%= p.salesCount || 0 %> sold • ₹<%= p.basePrice?.toLocaleString('en-IN') %></p>
+          <p class="text-xs text-gray-500"><%= p.salesCount || 0 %> sold • ₹<%= (p.displayPrice || p.basePrice || 0).toLocaleString('en-IN') %></p>
         </div>
       </div>
       <% }) %>
@@ -166,12 +169,18 @@ new Chart(document.getElementById('revenueChart'), {
 
 // Status Donut
 const statusData = <%- JSON.stringify(ordersByStatus) %>;
-const statusColors = ['#f0a500','#3b82f6','#10b981','#8b5cf6','#ef4444','#6b7280'];
+const statusColorMap = { pending: '#f59e0b', confirmed: '#3b82f6', processing: '#6366f1', packed: '#14b8a6', dispatched: '#8b5cf6', shipped: '#a855f7', out_for_delivery: '#06b6d4', delivered: '#10b981', cancelled: '#ef4444', returned: '#f97316', refunded: '#6b7280' };
+const fallbackColors = ['#f0a500','#3b82f6','#10b981','#8b5cf6','#ef4444','#06b6d4','#f97316','#84cc16','#6b7280'];
 new Chart(document.getElementById('statusChart'), {
   type: 'doughnut',
   data: {
-    labels: statusData.map(s => s._id),
-    datasets: [{ data: statusData.map(s => s.count), backgroundColor: statusColors, borderWidth: 0, hoverOffset: 4 }]
+    labels: statusData.map(s => s._id?.replace(/_/g, ' ')),
+    datasets: [{
+      data: statusData.map(s => s.count),
+      backgroundColor: statusData.map((s, i) => statusColorMap[s._id] || fallbackColors[i % fallbackColors.length]),
+      borderWidth: 0,
+      hoverOffset: 4
+    }]
   },
   options: {
     responsive: true,

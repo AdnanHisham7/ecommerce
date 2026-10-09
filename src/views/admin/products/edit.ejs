@@ -371,7 +371,7 @@
           <% (product.videos || []).forEach((vid, vIdx) => { %>
           <div class="relative group rounded-xl overflow-hidden border border-white/10" id="video-wrapper-<%= vIdx %>">
             <video src="<%= vid.url %>" <% if (vid.poster) { %>poster="<%= vid.poster %>"<% } %>
-              class="w-full h-32 object-cover bg-black" controls preload="metadata" playsinline></video>
+              class="w-full h-32 object-cover bg-black" controls preload="metadata" playsinline webkit-playsinline muted></video>
             <button type="button" onclick="deleteProductVideo('<%= vid.publicId %>', 'video-wrapper-<%= vIdx %>')"
               class="absolute top-1.5 right-1.5 w-7 h-7 bg-red-500 text-white rounded-full hidden group-hover:flex items-center justify-center shadow-lg z-20">
               <i class="fa-solid fa-xmark text-xs"></i>
@@ -508,15 +508,16 @@
 <div id="addSizeModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
   <div class="absolute inset-0 transparent-black" onclick="closeModal('addSizeModal')"></div>
   <div class="relative bg-[#1a1a2e] border border-white/10 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
-    <h3 class="font-bold text-white mb-4">Add Size</h3>
+    <h3 class="font-bold text-white mb-1">Add Size(s)</h3>
+    <p class="text-xs text-gray-400 mb-4">Enter a single size or multiple comma-separated sizes (e.g. <span class="text-accent-400 font-mono">L, M, XL, XXL, XXXL</span>)</p>
     <div class="space-y-3">
       <div>
-        <label class="text-xs text-gray-400 block mb-1">Size Label *</label>
-        <input type="text" id="asSize" placeholder="S, M, L, XL, 40, 41..." class="w-full rounded-lg px-3 py-2 text-sm"/>
+        <label class="text-xs text-gray-400 block mb-1">Size(s) *</label>
+        <input type="text" id="asSize" placeholder="e.g. L, M, XL, XXL, XXXL" onkeydown="if(event.key==='Enter') addSizeVariant()" class="w-full rounded-lg px-3 py-2 text-sm bg-black/40 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-accent-500"/>
       </div>
       <div class="flex gap-3 pt-2">
-        <button type="button" onclick="addSizeVariant()" class="flex-1 bg-green-600 hover:bg-green-500 text-white py-2.5 rounded-xl font-bold text-sm transition-colors">Add Size</button>
-        <button type="button" onclick="closeModal('addSizeModal')" class="px-4 py-2.5 border border-white/10 rounded-xl text-gray-400 text-sm">Cancel</button>
+        <button type="button" onclick="addSizeVariant()" class="flex-1 bg-green-600 hover:bg-green-500 text-white py-2.5 rounded-xl font-bold text-sm transition-colors">Add Size(s)</button>
+        <button type="button" onclick="closeModal('addSizeModal')" class="px-4 py-2.5 border border-white/10 rounded-xl text-gray-400 text-sm hover:text-white transition-colors">Cancel</button>
       </div>
     </div>
   </div>
@@ -855,11 +856,18 @@ function openEditSizeModal(sizeId, size, isActive) {
 }
 
 async function addSizeVariant() {
-  const size = document.getElementById('asSize').value.trim();
-  if (!size) { showToast('Size is required', 'error'); return; }
+  const sizeInput = document.getElementById('asSize');
+  const size = sizeInput.value.trim();
+  if (!size) { showToast('Please enter at least one size', 'error'); return; }
   const d = await apiCall('POST', `/admin/products/${PRODUCT_ID}/sizes`, { size });
-  if (d.success) { showToast('Size added!', 'success'); setTimeout(() => location.reload(), 800); }
-  else showToast(d.message || 'Error', 'error');
+  if (d.success) {
+    showToast(d.message || 'Size(s) added!', 'success');
+    closeModal('addSizeModal');
+    sizeInput.value = '';
+    setTimeout(() => location.reload(), 800);
+  } else {
+    showToast(d.message || 'Error adding size', 'error');
+  }
 }
 
 async function updateSizeVariant() {

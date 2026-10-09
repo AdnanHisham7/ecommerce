@@ -28,8 +28,12 @@ const env = require("./config/env");
 const app = express();
 
 // ====== Security Middleware ======
-// ====== Security Middleware ======
-app.use(helmet({ crossOriginEmbedderPolicy: false }));
+app.use(
+  helmet({
+    crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+  })
+);
 
 app.use(
   helmet.contentSecurityPolicy({
@@ -80,7 +84,14 @@ app.use(
         "https://cdn.onesignal.com",
         "https://api.onesignal.com",
       ],
-      imgSrc: ["'self'", "data:", "https:", "blob:"],
+      imgSrc: ["'self'", "data:", "https:", "blob:", "https://res.cloudinary.com"],
+      mediaSrc: [
+        "'self'",
+        "data:",
+        "blob:",
+        "https:",
+        "https://res.cloudinary.com",
+      ],
       workerSrc: [
         "'self'", 
         "blob:", 
